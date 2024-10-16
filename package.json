@@ -6,7 +6,8 @@
   "type": "module",
   "scripts": {
     "assertNodeVersion": "fnm use --silent-if-unchanged",
-    "build": "pnpm assertNodeVersion && pnpm run clean && pnpm exec tsc && pnpm run dotbuild .build/postprocess.build.mts",
+    "build": "pnpm assertNodeVersion && pnpm exec tsc && pnpm run dotbuild .build/postprocess.build.mts",
+    "build:force": "pnpm assertNodeVersion && pnpm run clean && pnpm exec tsc && pnpm run dotbuild .build/postprocess.build.mts",
     "clean": "pnpm assertNodeVersion && pnpm run dotbuild .build/clean.build.mts",
     "docs": "pnpm exec typedoc",
     "dotbuild": "pnpm assertNodeVersion && pnpm exec tsx --tsconfig=.build/tsconfig.json",
