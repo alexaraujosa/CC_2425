@@ -1,6 +1,7 @@
 # Computer Communication Project
 
 **Group:** idfk
+            P.S. Me Neither
 
 a104257, Alex Araújo de Sá, alexaraujosa  
 a96268, Paulo Alexandre Rodrigues Ferreira, Pauloarf  
