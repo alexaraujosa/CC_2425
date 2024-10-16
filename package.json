@@ -1,0 +1,49 @@
+{
+  "name": "cc-tp2",
+  "version": "1.0.0",
+  "description": "Practical Project 2 for the Computer Communcations class.",
+  "main": "dist/index.js",
+  "type": "module",
+  "scripts": {
+    "assertNodeVersion": "fnm use --silent-if-unchanged",
+    "build": "pnpm assertNodeVersion && pnpm run clean && pnpm exec tsc && pnpm run dotbuild .build/postprocess.build.mts",
+    "clean": "pnpm assertNodeVersion && pnpm run dotbuild .build/clean.build.mts",
+    "docs": "pnpm exec typedoc",
+    "dotbuild": "pnpm assertNodeVersion && pnpm exec tsx --tsconfig=.build/tsconfig.json",
+    "run:agent": "node dist/agent",
+    "run:server": "node dist/server",
+    "script": "pnpm assertNodeVersion && pnpm exec tsx --tsconfig=scripts/tsconfig.json",
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "keywords": [],
+  "contributors": [
+    {
+      "name": "Aléx Araújo de Sá"
+    },
+    {
+      "name": "Paulo Alexandre Rodrigues Ferreira"
+    },
+    {
+      "name": "Rafael Santos Fernandes"
+    }
+  ],
+  "license": "UNLICENSED",
+  "devDependencies": {
+    "@eslint/js": "^9.12.0",
+    "@types/archiver": "^6.0.2",
+    "@types/eslint__js": "^8.42.3",
+    "@types/node": "^22.7.5",
+    "archiver": "^7.0.1",
+    "eslint": "^9.12.0",
+    "tsx": "^4.19.1",
+    "typedoc": "^0.26.9",
+    "typedoc-plugin-not-exported": "^0.1.6",
+    "typescript": "^5.6.3",
+    "typescript-eslint": "^8.9.0"
+  },
+  "dependencies": {
+    "cac": "^6.7.14",
+    "chalk": "^5.3.0",
+    "dotenv": "^16.4.5"
+  }
+}

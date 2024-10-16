@@ -1,0 +1,65 @@
+{
+    // Use IntelliSense to learn about possible attributes.
+    // Hover to view descriptions of existing attributes.
+    // For more information, visit: https://go.microsoft.com/fwlink/?linkid=830387
+    "version": "0.2.0",
+    "configurations": [
+        {
+            "name": "Debug Current File (TSX)",
+            "type": "node",
+            "request": "launch",
+            "program": "${file}",
+            "runtimeExecutable": "tsx",
+            "console": "integratedTerminal",
+            "internalConsoleOptions": "openOnSessionStart",
+            // "internalConsoleOptions": "neverOpen",
+            "skipFiles": [
+                // Node.js internal core modules
+                "<node_internals>/**",
+                // Ignore all dependencies (optional)
+                "${workspaceFolder}/node_modules/**",
+            ],
+            "cwd": "${workspaceFolder}"
+        },
+        {
+            "name": "Debug Agent Solution (TSX)",
+            "type": "node",
+            "request": "launch",
+            "program": "src/agent/index.ts",
+            "runtimeExecutable": "tsx",
+            "console": "integratedTerminal",
+            "internalConsoleOptions": "openOnSessionStart",
+            "skipFiles": [
+                // Node.js internal core modules
+                "<node_internals>/**",
+                // Ignore all dependencies (optional)
+                "${workspaceFolder}/node_modules/**",
+            ],
+            "cwd": "${workspaceFolder}"
+        },
+        {
+            "name": "Debug Server Solution (TSX)",
+            "type": "node",
+            "request": "launch",
+            "program": "src/server/index.ts",
+            "runtimeExecutable": "tsx",
+            "console": "integratedTerminal",
+            "internalConsoleOptions": "openOnSessionStart",
+            "skipFiles": [
+                // Node.js internal core modules
+                "<node_internals>/**",
+                // Ignore all dependencies (optional)
+                "${workspaceFolder}/node_modules/**",
+            ],
+            "cwd": "${workspaceFolder}"
+        }
+    ],
+    "compounds": [
+        {
+            "name": "Debug Server + Agent",
+            "configurations": ["Debug Server Solution (TSX)", "Debug Agent Solution (TSX)"],
+            // "preLaunchTask": "${defaultBuildTask}",
+            "stopAll": true
+        }
+    ]
+}

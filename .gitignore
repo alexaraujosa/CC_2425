@@ -1,0 +1,17 @@
+# Generated directories:
+dist/
+node_modules/
+
+# Generated files:
+*.tsbuildinfo
+
+# Lockfiles:
+pnpm-lock.yaml
+package-lock.json
+
+# Environment Variables:
+.env
+
+# Documentation
+# - Remove on final commit, used to prevent commit pollution.
+docs/api
