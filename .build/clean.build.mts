@@ -34,7 +34,7 @@ interface CLIOptions {
 const NAME = "clean.build";
 const VERSION = "1.0.0";
 const DEFAULT_ROOT = path.join(__dirname, "../");
-const DEFAULT_TARGETS = ["dist"];
+const DEFAULT_TARGETS = ["dist", "tsconfig.tsbuildinfo"];
 const PROTECTED_TARGETS = [
     path.join(__dirname, "../.vscode"),
     path.join(__dirname, "../.build"),

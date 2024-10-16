@@ -99,7 +99,9 @@ function isSourceMapFile(filePath: string): boolean {
 isSourceMapFile;
 
 function makeRelativePath(root: string, filepath: string, target: string) {
-    return path.join(path.relative(path.dirname(filepath), root), target);
+    logger.log("mRP Root:", root, "| Filepath:", filepath, "| Target:", target);
+    logger.log("mRP Ret:", path.join(path.relative(path.dirname(filepath), root), target));
+    return path.join(path.relative(path.dirname(filepath), root), target) + path.sep;
 }
 
 async function postprocessSource(root: string, filePath: string, tsconfig: PPTSConfig, regexes: PPRegexes): Promise<boolean> {
