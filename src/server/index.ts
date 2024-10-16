@@ -4,16 +4,24 @@
  * Copyright (c) 2024 DarkenLM https://github.com/DarkenLM
  */
 
+import path from "path";
 import { TestType } from "$common/index.js";
-import isBinMode from "$common/isBinMode.js";
+import isBinMode from "$common/util/isBinMode.js";
+import { readJsonFile } from "$common/util/paths.js";
+import { Config } from "./config.js";
+import { getOrCreateGlobalLogger } from "$common/util/logger.js";
 
 /**
  * Example server function with documentaton.
  * 
  * *Also* ~~Supports~~ **Markdown**
  */
-export function serverInit(param1: string, param2: TestType) {
-    console.log("Hello world from SERVER.");
+export async function serverInit(param1: string, param2: TestType) {
+    const logger = getOrCreateGlobalLogger({printCallerFile: true, debug: true});
+    logger.info("Hello world from SERVER.");
+
+    const json = await readJsonFile<Config>(path.join(process.cwd(), "/tmp/settings.json"));
+    logger.info(json);
 }
 
 if (isBinMode(import.meta.url)) {
