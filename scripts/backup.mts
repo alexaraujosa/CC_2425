@@ -29,7 +29,7 @@ const packageName = packageJson.name;
 const outputDirectory = path.join(directoryToZip, "../backups");
 
 // Files and directories to exclude from the zip
-const excludeList = [".git", "node_modules", "out", "build"];
+const excludeList = [".git", "node_modules", "out", "dist", "docs"];
 
 // Check if the output directory exists, if not create it
 if (!fs.existsSync(outputDirectory)) {
