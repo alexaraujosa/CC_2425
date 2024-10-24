@@ -6,7 +6,6 @@
 
 import path from "path";
 import net  from "net";
-import { TestType } from "$common/index.js";
 import isBinMode from "$common/util/isBinMode.js";
 import { readJsonFile } from "$common/util/paths.js";
 import { Config } from "./config.js";
@@ -20,8 +19,8 @@ const PORT = "2022";
  * 
  * *Also* ~~Supports~~ **Markdown**
  */
-export async function serverInit(param1: string, param2: TestType) {
-    const logger = getOrCreateGlobalLogger({printCallerFile: true, debug: false});
+export async function serverInit() {
+    const logger = getOrCreateGlobalLogger({printCallerFile: true, debug: true});
     logger.info("Hello world from SERVER.");
 
     // Config loader
@@ -32,29 +31,29 @@ export async function serverInit(param1: string, param2: TestType) {
     const server = net.createServer();
     
     server.on("connection", socket => {
-        console.log("Agent connected.");
+        logger.log("Agent connected.");
         socket.write("Hello agent, I'm the server.");
         socket.write("See you on the other side.");
         socket.end();
 
         socket.on("data", data => {
-            console.log("Received data: " + data);
+            logger.log("Received data: " + data);
         });
 
         socket.on("error", error => {
-            console.log(error);
+            logger.log(error);
             server.close();
-        })
+        });
 
         socket.on("close", () => {
-            console.log("Agent disconnected.")
+            logger.log("Agent disconnected.");
         });
         
     });
 
-    server.listen({port: PORT, host: HOST}, () => console.log("Server bound to port " + PORT + " with success."));  
+    server.listen({port: PORT, host: HOST}, () => logger.pLog("Server bound to port " + PORT + " with success."));  
 }
 
 if (isBinMode(import.meta.url)) {
-    serverInit("abc", { prop1: true, prop2: 123, prop3: {} });
+    serverInit();
 }

@@ -19,7 +19,7 @@
   "keywords": [],
   "contributors": [
     {
-      "name": "Aléx Araújo de Sá"
+      "name": "Alex Araújo de Sá"
     },
     {
       "name": "Paulo Alexandre Rodrigues Ferreira"
@@ -30,12 +30,14 @@
   ],
   "license": "UNLICENSED",
   "devDependencies": {
+    "@eslint/eslintrc": "^3.1.0",
     "@eslint/js": "^9.12.0",
     "@types/archiver": "^6.0.2",
     "@types/eslint__js": "^8.42.3",
     "@types/node": "^22.7.5",
     "archiver": "^7.0.1",
     "eslint": "^9.12.0",
+    "globals": "^15.11.0",
     "tsx": "^4.19.1",
     "typedoc": "^0.26.9",
     "typedoc-plugin-not-exported": "^0.1.6",

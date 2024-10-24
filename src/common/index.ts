@@ -38,4 +38,4 @@ export interface TestType {
     prop3: TestTypeProp3
 }
 
-console.log("Hello world from COMMON.");
+// console.log("Hello world from COMMON.");
