@@ -6,22 +6,39 @@
 
 import path from "path";
 import net  from "net";
+import { cac } from "cac";
 import isBinMode from "$common/util/isBinMode.js";
 import { readJsonFile } from "$common/util/paths.js";
 import { Config } from "./config.js";
 import { getOrCreateGlobalLogger } from "$common/util/logger.js";
+import { TestUDPServer } from "./protocol/udp.js";
 
-const HOST = "127.0.0.1";
-const PORT = "2022";
+//#region ============== Types ==============
+interface CLIOptions {
+    debug: boolean,
+    host: string,
+    port: number
+}
+//#endregion
+
+//#region ============== Constants ==============
+const NAME = "agent";
+const VERSION = "1.0.0";
+const DEFAULT_HOST = "127.0.0.1";
+const DEFAULT_PORT = 2022;
+//#endregion
 
 /**
  * Example server function with documentaton.
  * 
  * *Also* ~~Supports~~ **Markdown**
  */
-export async function serverInit() {
-    const logger = getOrCreateGlobalLogger({printCallerFile: true, debug: true});
+export async function serverInit(options: CLIOptions) {
+    const logger = getOrCreateGlobalLogger();
     logger.info("Hello world from SERVER.");
+
+    const host = options.host;
+    const port = options.port;
 
     // Config loader
     const json = await readJsonFile<Config>(path.join(process.cwd(), "/tmp/settings.json"));
@@ -51,9 +68,30 @@ export async function serverInit() {
         
     });
 
-    server.listen({port: PORT, host: HOST}, () => logger.pLog("Server bound to port " + PORT + " with success."));  
+    server.listen({port: port, host: host}, () => logger.pLog("Server bound to port " + port + " with success."));  
+
+
+    const udpServer = new TestUDPServer();
+    udpServer.listen(port + 1);
 }
 
-if (isBinMode(import.meta.url)) {
-    serverInit();
+//#region ============== CLI ==============
+const cli = cac(NAME).version(VERSION);
+cli.help();
+cli.option("--debug, -d", "Enable debug mode");
+cli.option("--host [host]", "The IP address of the host to connect to.", { type: <never>String, default: DEFAULT_HOST });
+cli.option("--port [port]", "The port to the host to connect to.", { type: <never>Number, default: DEFAULT_PORT });
+
+async function cliHandler() {
+    const { options } = cli.parse();
+    if (options.help || options.version) return; // Do not execute script if help message was requested.
+    
+    getOrCreateGlobalLogger({ printCallerFile: options.debug, debug: options.debug });
+
+    await serverInit(<CLIOptions>options);
+    return;
 }
+if (isBinMode(import.meta.url)) {
+    cliHandler();
+}
+//#endregion ============== CLI ==============
