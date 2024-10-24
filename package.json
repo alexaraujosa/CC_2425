@@ -6,13 +6,14 @@
   "type": "module",
   "scripts": {
     "assertNodeVersion": "fnm use --silent-if-unchanged",
+    "backup": "pnpm run script scripts/backup.mts",
     "build": "pnpm assertNodeVersion && pnpm exec tsc && pnpm run dotbuild .build/postprocess.build.mts",
     "build:force": "pnpm assertNodeVersion && pnpm run clean && pnpm exec tsc && pnpm run dotbuild .build/postprocess.build.mts",
     "clean": "pnpm assertNodeVersion && pnpm run dotbuild .build/clean.build.mts",
     "docs": "pnpm exec typedoc",
     "dotbuild": "pnpm assertNodeVersion && pnpm exec tsx --tsconfig=.build/tsconfig.json",
-    "run:agent": "node dist/agent",
-    "run:server": "node dist/server",
+    "run:agent": "node --enable-source-maps dist/agent",
+    "run:server": "node --enable-source-maps dist/server",
     "script": "pnpm assertNodeVersion && pnpm exec tsx --tsconfig=scripts/tsconfig.json",
     "test": "echo \"Error: no test specified\" && exit 1"
   },
