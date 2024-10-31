@@ -20,7 +20,7 @@ abstract class UDPConnection {
      * 
      * @param err The error that was passed to this event.
      */
-    public abstract onError(err: Error): void;
+    protected abstract onError(err: Error): void;
 
     /**
      * Event method fired when a message is received by the UDP connection.  
@@ -29,23 +29,22 @@ abstract class UDPConnection {
      * @param msg A Buffer instance containing the byte stream payload.
      * @param rinfo An object containing metadata about the remote connection.
      */
-    public abstract onMessage(msg: Buffer, rinfo: dgram.RemoteInfo): void;
+    protected abstract onMessage(msg: Buffer, rinfo: dgram.RemoteInfo): void;
 
     /**
      * Event method fired when the UDP connection is initialized and ready to listen for connections. 
      * This event is only fired once.
      */
-    public onListen() {};
-    // public abstract onListen(): void;
+    protected onListen() {};
 
     /**
      * Event method fired when the UDP connection is closed.
      * This event is only fired once.
      */
-    public onClose() {};
+    protected onClose() {};
 }
 
-export type { RemoteInfo } from "dgram";
+// export type { RemoteInfo } from "dgram";
 export {
     UDPConnection
 };

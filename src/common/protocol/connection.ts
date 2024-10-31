@@ -1,11 +1,18 @@
-import { RemoteInfo } from "./udp.js";
+import { Clonable } from "$types/util/Clonable.js";
+
+interface RemoteInfo {
+    address: string;
+    family: "IPv4" | "IPv6";
+    port: number;
+    size: number;
+}
 
 type ConnectionTargetLike = ConnectionTarget | RemoteInfo;
 
 /**
  * Represents a remote target that can be connected to.
  */
-class ConnectionTarget {
+class ConnectionTarget implements Clonable<ConnectionTarget> {
     private _address: string;
     private _port: number;
 
@@ -51,6 +58,10 @@ class ConnectionTarget {
         return rinfo.address === this._address && rinfo.port === this._port;
     }
 
+    public clone(): ConnectionTarget {
+        return new ConnectionTarget(this._address, this._port);
+    }
+
     //#region ======= STATIC =======
     /**
      * Converts a {@link ConnectionTargetLike} to it's qualified name.
@@ -68,6 +79,7 @@ class ConnectionTarget {
 }
 
 export {
+    type RemoteInfo,
     type ConnectionTargetLike,
 
     ConnectionTarget
