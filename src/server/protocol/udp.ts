@@ -1,5 +1,5 @@
-import { ConnectionTargetLike } from "$common/protocol/connection.js";
-import { RemoteInfo, UDPConnection } from "$common/protocol/udp.js";
+import { ConnectionTargetLike, RemoteInfo } from "$common/protocol/connection.js";
+import { UDPConnection } from "$common/protocol/udp.js";
 
 abstract class UDPServer extends UDPConnection {
     public constructor() {

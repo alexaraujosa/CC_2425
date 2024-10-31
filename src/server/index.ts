@@ -5,13 +5,15 @@
  */
 
 import path from "path";
-import net  from "net";
+// import net  from "net";
 import { cac } from "cac";
 import isBinMode from "$common/util/isBinMode.js";
 import { readJsonFile } from "$common/util/paths.js";
 import { Config } from "./config.js";
 import { getOrCreateGlobalLogger } from "$common/util/logger.js";
 import { TestUDPServer } from "./protocol/udp.js";
+import { TCPServer } from "./protocol/tcp.js";
+import { ConnectionTarget } from "$common/protocol/connection.js";
 
 //#region ============== Types ==============
 interface CLIOptions {
@@ -45,31 +47,35 @@ export async function serverInit(options: CLIOptions) {
     logger.info(json);
 
     // Server setup
-    const server = net.createServer();
+    // const server = net.createServer();
     
-    server.on("connection", socket => {
-        logger.log("Agent connected.");
-        socket.write("Hello agent, I'm the server.");
-        socket.write("See you on the other side.");
-        socket.end();
+    // server.on("connection", socket => {
+    //     logger.log("Agent connected.");
+    //     socket.write("Hello agent, I'm the server.");
+    //     socket.write("See you on the other side.");
+    //     socket.end();
 
-        socket.on("data", data => {
-            logger.log("Received data: " + data);
-        });
+    //     socket.on("data", data => {
+    //         logger.log("Received data: " + data);
+    //     });
 
-        socket.on("error", error => {
-            logger.log(error);
-            server.close();
-        });
+    //     socket.on("error", error => {
+    //         logger.log(error);
+    //         server.close();
+    //     });
 
-        socket.on("close", () => {
-            logger.log("Agent disconnected.");
-        });
+    //     socket.on("close", () => {
+    //         logger.log("Agent disconnected.");
+    //     });
         
-    });
+    // });
 
-    server.listen({port: port, host: host}, () => logger.pLog("Server bound to port " + port + " with success."));  
+    // server.listen({port: port, host: host}, () => logger.pLog("Server bound to port " + port + " with success."));  
 
+    const tcpCT = new ConnectionTarget(host, port);
+    logger.info("TCP Target:", tcpCT.qualifiedName);
+    const tcpServer = new TCPServer();
+    tcpServer.listen(tcpCT);
 
     const udpServer = new TestUDPServer();
     udpServer.listen(port + 1);
