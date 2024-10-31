@@ -1,8 +1,31 @@
+/**
+ * @module UDP
+ * Common definitions for UDP connections. Used in both the AGENT and SERVER solutions for the implementation
+ * of UDP Clients and Servers, respectively.
+ * 
+ * Copyright (c) 2024 DarkenLM https://github.com/DarkenLM
+ */
+
 import { DefaultLogger, getOrCreateGlobalLogger } from "$common/util/logger.js";
 import dgram from "dgram";
 
+/**
+ * This class is a wrapper around a UDP Socket that represents a UDP Connection.
+ * 
+ * A UDPConnection cannot be directly instantiated, and needs to be extended and implemented before being usable.
+ * 
+ * A UDPConnection automatically binds most used events to their respective method handlers, which can be implemented
+ * by any subclass.
+ */
 abstract class UDPConnection {
+    /**
+     * The socket used for this UDP connection.
+     */
     protected socket: dgram.Socket;
+
+    /**
+     * An easy access point to the global logger instance. 
+     */
     protected logger: DefaultLogger;
 
     public constructor() {

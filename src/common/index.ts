@@ -1,41 +1,22 @@
 /**
- * @module common
- * Common utilities to ensure consistency between the SERVER and the AGENT Solutions.
+ * Exports required for documentation.
  * 
  * Copyright (c) 2024 DarkenLM https://github.com/DarkenLM
  */
 
-/**
- * Nested property type for {@link TestType}.  
- * Also, did you know you can link to other entities with `@link`? Pretty neat.
- *
- * @interface TestTypeProp3
- */
-export interface TestTypeProp3 {
-    /** Inline roperty documentation. */
-    prop1?: boolean,
-    /**
-     * Expanded property docuementation.  
-     * It's probably here due to Intellisense.
-     *
-     * @type {TestType}
-     * @memberof TestTypeProp3
-     */
-    prop2?: TestType
-}
+//#region ============== Protocol ==============
+export * as Connection from "./protocol/connection.js";
+export * as TCP from "./protocol/tcp.js";
+export * as UDP from "./protocol/udp.js";
+//#endregion ============== Protocol ==============
 
-/**
- * An interface. Used to specifiy the types of objects. Pretty useful.
- */
-export interface TestType {
-    /**
-     * Property documentation that takes a bit more space in the code. Doesn't matter in the docs.
-     */
-    prop1: boolean,
-    /** Tiny and compact property documentation. */
-    prop2: number,
-    /** This property is special. Why? Because I said so. */
-    prop3: TestTypeProp3
-}
-
-// console.log("Hello world from COMMON.");
+//#region ============== Util ==============
+export * as date from "./util/date.js";
+export * from "./util/dedent.js";
+export * from "./util/getCaller.js";
+export * from "./util/isBinMode.js";
+export * as logger from "./util/logger.js";
+export * as Object from "./util/object.js";
+export * as Paths from "./util/paths.js";
+export * as Time from "./util/time.js";
+//#endregion ============== Util ==============

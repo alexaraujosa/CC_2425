@@ -1,5 +1,5 @@
 /**
- * @module Logger utility module.
+ * @module Logger
  * @description Provides a utility for logging messages to the console.
  * @version 1.0.0
  * 

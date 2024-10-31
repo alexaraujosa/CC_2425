@@ -5,6 +5,12 @@ import net from "net";
 
 const TCP_SERVER_EVENT_CLOSED = "__server_closed__";
 
+/**
+ * This class represents a TCPConnection between the server and a given client.
+ * 
+ * This connection is opened by the server upon triggering {@link TCPServer.onSocketConnection|onSocketConnection}
+ * by a client initializing a connection with the server.
+ */
 class TCPServerConnection extends TCPConnection {
     protected _id: number;
     protected connected: boolean;
@@ -25,14 +31,24 @@ class TCPServerConnection extends TCPConnection {
         });
     }
 
+    /**
+     * Returns the unique identifier for this particular connection.
+     */
     public get id(): number {
         return this.id;
     }
 
+    /**
+     * Returns a boolean indicating whether the socket has already established a connection and is ready
+     * to send and receive packets.
+     */
     public isConnected(): boolean {
         return this.connected;
     }
 
+    /**
+     * Returns a boolean indicating whether the socket has already been closed and can no longer be used.
+     */
     public isClosed(): boolean {
         return this.closed;
     }
@@ -65,7 +81,7 @@ class TCPServerConnection extends TCPConnection {
      * *Close this connection. Thanks.*
      * 
      * Sends a FIN packet to close the connection. May not properly close the connection, 
-     * use {@link TCPServerConnection.close|close} to ensure proper connection closing.
+     * use {@link TCPServerConnection.destroy|destroy} to ensure proper connection closing.
      */
     public close(callback?: () => void) {
         this.socket.end(callback);
@@ -81,11 +97,38 @@ class TCPServerConnection extends TCPConnection {
     }
 }
 
+/**
+ * A TCP Server with integrated events and asynchronous flow control.
+ * 
+ * @example
+ * const server = new TCPServer().listen(new ConnectionTarget(ADDRESS, PORT));
+ */
 class TCPServer {
+    /**
+     * The {@link net.Server} used for this TCP connection.
+     */
     protected server: net.Server;
+
+    /**
+     * An easy access point to the global logger instance. 
+     */
     protected logger: DefaultLogger;
+
+    /**
+     * Idfk.
+     */
+    // TODO: Dielete?
     protected seq: number;
+
+    /**
+     * A map containing all currently active connections within the server.
+     */
     protected connections: Map<number, TCPServerConnection>;
+
+    /**
+     * A pointer to the fallback method used in case the "close" event is triggered by an external source 
+     * in a non-gracious manner.
+     */
     private _onClose: typeof this.onClose;
 
     public constructor() {

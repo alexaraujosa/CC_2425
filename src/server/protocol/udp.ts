@@ -1,6 +1,10 @@
 import { ConnectionTargetLike, RemoteInfo } from "$common/protocol/connection.js";
 import { UDPConnection } from "$common/protocol/udp.js";
 
+/**
+ * This class is meant to be used as a base for UDP Server implementations.
+ */
+// TODO: Merge into one class. Make listen consistent with TCP.
 abstract class UDPServer extends UDPConnection {
     public constructor() {
         super();
@@ -24,6 +28,12 @@ abstract class UDPServer extends UDPConnection {
     }
 }
 
+/**
+ * A UDP Server with integrated events and asynchronous flow control.
+ * 
+ * @example
+ * const server = new UDPServer().listen(new ConnectionTarget(ADDRESS, PORT));
+ */
 class TestUDPServer extends UDPServer {
     public constructor() {
         super();

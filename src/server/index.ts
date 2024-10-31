@@ -5,7 +5,6 @@
  */
 
 import path from "path";
-// import net  from "net";
 import { cac } from "cac";
 import isBinMode from "$common/util/isBinMode.js";
 import { readJsonFile } from "$common/util/paths.js";
@@ -21,19 +20,17 @@ interface CLIOptions {
     host: string,
     port: number
 }
-//#endregion
+//#endregion ============== Types ==============
 
 //#region ============== Constants ==============
 const NAME = "agent";
 const VERSION = "1.0.0";
 const DEFAULT_HOST = "127.0.0.1";
 const DEFAULT_PORT = 2022;
-//#endregion
+//#endregion ============== Constants ==============
 
 /**
- * Example server function with documentaton.
- * 
- * *Also* ~~Supports~~ **Markdown**
+ * Entry point for SERVER solution.
  */
 export async function serverInit(options: CLIOptions) {
     const logger = getOrCreateGlobalLogger();
@@ -47,31 +44,6 @@ export async function serverInit(options: CLIOptions) {
     logger.info(json);
 
     // Server setup
-    // const server = net.createServer();
-    
-    // server.on("connection", socket => {
-    //     logger.log("Agent connected.");
-    //     socket.write("Hello agent, I'm the server.");
-    //     socket.write("See you on the other side.");
-    //     socket.end();
-
-    //     socket.on("data", data => {
-    //         logger.log("Received data: " + data);
-    //     });
-
-    //     socket.on("error", error => {
-    //         logger.log(error);
-    //         server.close();
-    //     });
-
-    //     socket.on("close", () => {
-    //         logger.log("Agent disconnected.");
-    //     });
-        
-    // });
-
-    // server.listen({port: port, host: host}, () => logger.pLog("Server bound to port " + port + " with success."));  
-
     const tcpCT = new ConnectionTarget(host, port);
     logger.info("TCP Target:", tcpCT.qualifiedName);
     const tcpServer = new TCPServer();

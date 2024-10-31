@@ -1,5 +1,16 @@
+/**
+ * Utility for representation and usage of remote target addresses.  
+ * Should be preferred in place of direct address/port values.
+ * 
+ * Copyright (c) 2024 DarkenLM https://github.com/DarkenLM
+ */
+
 import { Clonable } from "$types/util/Clonable.js";
 
+//#region ============== Types ==============
+/**
+ * This interface represents a remote target.
+ */
 interface RemoteInfo {
     address: string;
     family: "IPv4" | "IPv6";
@@ -7,7 +18,11 @@ interface RemoteInfo {
     size: number;
 }
 
+/**
+ * Any object that represents a remote target following the structure of a ConnectionTarget.
+ */
 type ConnectionTargetLike = ConnectionTarget | RemoteInfo;
+//#endregion ============== Types ==============
 
 /**
  * Represents a remote target that can be connected to.

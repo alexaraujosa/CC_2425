@@ -1,10 +1,24 @@
+/**
+ * @module UDP
+ * UDP Client implementation.
+ * 
+ * Copyright (c) 2024 DarkenLM https://github.com/DarkenLM
+ */
+
 import { ConnectionTarget } from "$common/protocol/connection.js";
 import { UDPConnection } from "$common/protocol/udp.js";
 import { RemoteInfo } from "dgram";
 
+/**
+ * A UDP Client with integrated events and asynchronous flow control.
+ * 
+ * @example
+ * const client = new UDPClient().connect(new ConnectionTarget(ADDRESS, PORT));
+ * client.send(Buffer.from("Hello world!"))
+ */
 class UDPClient extends UDPConnection {
     private target!: ConnectionTarget;
-    
+
     public constructor() {
         super();
     }

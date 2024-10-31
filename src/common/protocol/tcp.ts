@@ -1,8 +1,31 @@
+/**
+ * @module TCP
+ * Common definitions for TCP connections. Used in both the AGENT and SERVER solutions for the implementation
+ * of TCP Clients and Servers, respectively.
+ * 
+ * Copyright (c) 2024 DarkenLM https://github.com/DarkenLM
+ */
+
 import { DefaultLogger, getOrCreateGlobalLogger } from "$common/util/logger.js";
 import net from "net";
 
+/**
+ * This class is a wrapper around a TCP Socket that represents a TCP Connection.
+ * 
+ * A TCPConnection cannot be directly instantiated, and needs to be extended and implemented before being usable.
+ * 
+ * A TCPConnection automatically binds most used events to their respective method handlers, which can be implemented
+ * by any subclass.
+ */
 abstract class TCPConnection {
+    /**
+     * The socket used for this TCP connection.
+     */
     protected socket: net.Socket;
+
+    /**
+     * An easy access point to the global logger instance. 
+     */
     protected logger: DefaultLogger;
 
     constructor(socket: net.Socket) {

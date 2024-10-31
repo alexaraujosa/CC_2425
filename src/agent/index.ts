@@ -18,19 +18,17 @@ interface CLIOptions {
     host: string,
     port: number
 }
-//#endregion
+//#endregion ============== Types ==============
 
 //#region ============== Constants ==============
 const NAME = "agent";
 const VERSION = "1.0.0";
 const DEFAULT_HOST = "127.0.0.1";
 const DEFAULT_PORT = 2022;
-//#endregion
+//#endregion ============== Constants ==============
 
 /**
- * Example agent function with documentaton.
- * 
- * *Also* ~~Supports~~ **Markdown**
+ * Entry point for AGENT solution.
  */
 export async function agentInit(options: CLIOptions) {
     const logger = getOrCreateGlobalLogger();
@@ -38,23 +36,6 @@ export async function agentInit(options: CLIOptions) {
 
     const host = options.host;
     const port = options.port;
-
-    // const client = net.connect({port: port, host: host}, () => {
-    //     logger.log("Connected to " + host + ":" + port);
-    //     client.write("Hello server! I'm an agent.");
-
-    //     client.on("data", data => {
-    //         logger.log("Received data: " + data);
-    //     });
-
-    //     client.on("error", error => {
-    //         logger.log(error);
-    //     });
-
-    //     client.on("close", () => {
-    //         logger.log("Connection closed.");
-    //     });
-    // });
 
     const tcpClient = new TCPClient();
     await tcpClient.connect(new ConnectionTarget(host, port));

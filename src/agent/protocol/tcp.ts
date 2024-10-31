@@ -1,7 +1,21 @@
+/**
+ * @module TCP
+ * TCP Client implementation.
+ * 
+ * Copyright (c) 2024 DarkenLM https://github.com/DarkenLM
+ */
+
 import net from "net";
 import { TCPConnection } from "$common/protocol/tcp.js";
 import { ConnectionTarget } from "$common/protocol/connection.js";
 
+/**
+ * A TCP Client with integrated events and asynchronous flow control.
+ * 
+ * @example
+ * const client = new TCPClient().connect(new ConnectionTarget(ADDRESS, PORT));
+ * client.send(Buffer.from("Hello world!"))
+ */
 class TCPClient extends TCPConnection {
     protected connected: boolean;
 
@@ -12,6 +26,10 @@ class TCPClient extends TCPConnection {
         this.connected = false;
     }
 
+    /**
+     * Returns a boolean indicating whether the socket has already established a connection and is ready
+     * to send and receive packets.
+     */
     public isConnected(): boolean {
         return this.connected;
     }
