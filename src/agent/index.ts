@@ -4,12 +4,13 @@
  * Copyright (c) 2024 DarkenLM https://github.com/DarkenLM
  */
 
-import net from "net";
+// import net from "net";
 import { cac } from "cac";
 import isBinMode from "$common/util/isBinMode.js";
 import { getOrCreateGlobalLogger } from "$common/util/logger.js";
 import { UDPClient } from "./protocol/udp.js";
 import { ConnectionTarget } from "$common/protocol/connection.js";
+import { TCPClient } from "./protocol/tcp.js";
 
 //#region ============== Types ==============
 interface CLIOptions {
@@ -31,30 +32,33 @@ const DEFAULT_PORT = 2022;
  * 
  * *Also* ~~Supports~~ **Markdown**
  */
-export function agentInit(options: CLIOptions) {
+export async function agentInit(options: CLIOptions) {
     const logger = getOrCreateGlobalLogger();
     logger.log("Hello world from AGENT.");
 
     const host = options.host;
     const port = options.port;
 
-    const client = net.connect({port: port, host: host}, () => {
-        logger.log("Connected to " + host + ":" + port);
-        client.write("Hello server! I'm an agent.");
+    // const client = net.connect({port: port, host: host}, () => {
+    //     logger.log("Connected to " + host + ":" + port);
+    //     client.write("Hello server! I'm an agent.");
 
-        client.on("data", data => {
-            logger.log("Received data: " + data);
-        });
+    //     client.on("data", data => {
+    //         logger.log("Received data: " + data);
+    //     });
 
-        client.on("error", error => {
-            logger.log(error);
-        });
+    //     client.on("error", error => {
+    //         logger.log(error);
+    //     });
 
-        client.on("close", () => {
-            logger.log("Connection closed.");
-        });
-    });
+    //     client.on("close", () => {
+    //         logger.log("Connection closed.");
+    //     });
+    // });
 
+    const tcpClient = new TCPClient();
+    await tcpClient.connect(new ConnectionTarget(host, port));
+    tcpClient.send(Buffer.from("Hello from TCP Client."));
 
     const udpClient = new UDPClient();
     udpClient.connect(new ConnectionTarget(host, port + 1));
