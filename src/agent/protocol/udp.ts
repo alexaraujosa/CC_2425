@@ -5,7 +5,9 @@
  * Copyright (c) 2024 DarkenLM https://github.com/DarkenLM
  */
 
+import { makeHelloThereDatagram, makeTheNegotiatorDatagram, NetflowDatagramType, readGeneralKenobiDatagram, readMessageDatagram, verifySignature } from "$common/datagram/netflow.js";
 import { ConnectionTarget } from "$common/protocol/connection.js";
+import { ECDHE } from "$common/protocol/ecdhe.js";
 import { UDPConnection } from "$common/protocol/udp.js";
 import { RemoteInfo } from "dgram";
 
@@ -18,9 +20,13 @@ import { RemoteInfo } from "dgram";
  */
 class UDPClient extends UDPConnection {
     private target!: ConnectionTarget;
+    private ecdhe: ECDHE;
+    // private challengeSalt!: Buffer;
 
     public constructor() {
         super();
+
+        this.ecdhe = new ECDHE("secp128r1");
     }
     
     public onError(err: Error): void {
@@ -33,6 +39,49 @@ class UDPClient extends UDPConnection {
         }
 
         this.logger.info(`UDP Client got message from target:`, msg.toString("utf8"));
+
+        if (!verifySignature(msg)) {
+            this.logger.error("Message is invalid: Invalid signature.");
+            return;
+        }
+
+        const type = msg.readUint32BE(4);
+        switch (type) {
+            case NetflowDatagramType.HELLO_THERE: { 
+                // Do fuck all
+                break;
+            }
+            case NetflowDatagramType.GENERAL_KENOBI: { 
+                this.logger.log("Got GENERAL_KENOBY frame.");
+                const dg = readGeneralKenobiDatagram(msg);
+                this.ecdhe.link(dg.publicKey, dg.salt);
+
+                const verCh = this.ecdhe.verifyChallenge(dg.challenge);
+                // this.challengeSalt = verCh.control;
+
+                // Assume authentication succeeded, compute communication salt.
+                this.ecdhe.regenerateKeys(verCh.control);
+
+                const reply = makeTheNegotiatorDatagram(verCh.challenge);
+                this.send(reply);
+                break;
+            }
+            case NetflowDatagramType.THE_NEGOTIATOR: {
+                // Who needs to negotiate when you have a fucking gun?
+                break;
+            }
+            case NetflowDatagramType.MESSAGE: { 
+                const dg = readMessageDatagram(msg);
+                const message = this.ecdhe.decrypt(dg.message);
+
+                this.logger.log(`UDP Client received message: '${message.toString("utf8")}'`);
+                break;
+            }
+            case NetflowDatagramType.KYS: { // Commit die.
+                
+                break;
+            }
+        }
     }
 
     /**
@@ -49,6 +98,13 @@ class UDPClient extends UDPConnection {
      */
     public connect(target: ConnectionTarget) {
         this.target = target;
+        
+        const helloThere = makeHelloThereDatagram(this.ecdhe);
+        this.send(helloThere);
+    }
+
+    public close() {
+
     }
 }
 

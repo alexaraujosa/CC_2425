@@ -43,7 +43,7 @@ export async function agentInit(options: CLIOptions) {
 
     const udpClient = new UDPClient();
     udpClient.connect(new ConnectionTarget(host, port + 1));
-    udpClient.send(Buffer.from("Hello from UDP Client."));
+    // udpClient.send(Buffer.from("Hello from UDP Client."));
 
 }
 
