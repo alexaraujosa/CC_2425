@@ -2,7 +2,7 @@
  * @module TCP
  * TCP Client implementation.
  * 
- * Copyright (c) 2024 DarkenLM https://github.com/DarkenLM
+ * @copyright Copyright (c) 2024 DarkenLM https://github.com/DarkenLM
  */
 
 import net from "net";

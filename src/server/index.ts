@@ -1,7 +1,7 @@
 /**
  * Entry point for the SERVER Solution.
  * 
- * Copyright (c) 2024 DarkenLM https://github.com/DarkenLM
+ * @copyright Copyright (c) 2024 DarkenLM https://github.com/DarkenLM
  */
 
 import path from "path";

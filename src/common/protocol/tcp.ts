@@ -3,7 +3,7 @@
  * Common definitions for TCP connections. Used in both the AGENT and SERVER solutions for the implementation
  * of TCP Clients and Servers, respectively.
  * 
- * Copyright (c) 2024 DarkenLM https://github.com/DarkenLM
+ * @copyright Copyright (c) 2024 DarkenLM https://github.com/DarkenLM
  */
 
 import { DefaultLogger, getOrCreateGlobalLogger } from "$common/util/logger.js";

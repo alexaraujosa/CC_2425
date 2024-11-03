@@ -1,8 +1,10 @@
 /**
+ * @module Connection
+ * 
  * Utility for representation and usage of remote target addresses.  
  * Should be preferred in place of direct address/port values.
  * 
- * Copyright (c) 2024 DarkenLM https://github.com/DarkenLM
+ * @copyright Copyright (c) 2024 DarkenLM https://github.com/DarkenLM
  */
 
 import { Clonable } from "$types/util/Clonable.js";

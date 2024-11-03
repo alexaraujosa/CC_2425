@@ -1,7 +1,7 @@
 /**
  * Exports required for documentation.
  * 
- * Copyright (c) 2024 DarkenLM https://github.com/DarkenLM
+ * @copyright Copyright (c) 2024 DarkenLM https://github.com/DarkenLM
  */
 
 //#region ============== Protocol ==============

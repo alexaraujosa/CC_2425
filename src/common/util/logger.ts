@@ -3,7 +3,7 @@
  * @description Provides a utility for logging messages to the console.
  * @version 1.0.0
  * 
- * Copyright (c) 2024 DarkenLM https://github.com/DarkenLM
+ * @copyright Copyright (c) 2024 DarkenLM https://github.com/DarkenLM
  */
 
 import chalk from "chalk";

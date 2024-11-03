@@ -1,7 +1,7 @@
 /**
  * Gets the caller of the function. Can be offset to allow proxying.
  * 
- * Copyright (c) 2024 DarkenLM https://github.com/DarkenLM
+ * @copyright Copyright (c) 2024 DarkenLM https://github.com/DarkenLM
  * 
  * @param {string} parentPath The full path of the parent to be removed from the beginning of the returned line.
  * @param {number} ignoreLevels The number of lines to be poped from the stack trace before processing.
