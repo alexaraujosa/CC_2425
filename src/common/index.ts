@@ -8,6 +8,7 @@
 export * as Connection from "./protocol/connection.js";
 export * as TCP from "./protocol/tcp.js";
 export * as UDP from "./protocol/udp.js";
+export * as ECDHE from "./protocol/ecdhe.js";
 //#endregion ============== Protocol ==============
 
 //#region ============== Util ==============
