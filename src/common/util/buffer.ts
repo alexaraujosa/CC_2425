@@ -109,6 +109,14 @@ class BufferReader implements _BufferReaderIndex {
         }
     }
 
+    public eof() {
+        return this.offset === this.buffer.byteLength;
+    }
+
+    public peek() {
+        return this.buffer.readUInt8(this.offset);
+    }
+
     //#region ======= Readers =======
     private _read(size: BufferSize) {
         const value = this.buffer.readUIntBE(this.offset, size);
