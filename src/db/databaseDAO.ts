@@ -29,15 +29,27 @@ class DatabaseDAO {
     }
 
     // Métodos CRUD para Device
-    public async createDevice(values: Partial<IDevice>) {
+    public async createDevice(values: Partial<IDevice>): Promise<number> {
         try {
-            const device = new this.DeviceModel(values);
-            return await device.save();
+            const lastDevice = await this.DeviceModel.findOne().sort({ id: -1 });
+            const newId = lastDevice ? lastDevice.id + 1 : 1; // Se não há dispositivos, o `id` começa em 1
+
+            // 2. Criar o dispositivo com o novo `id`
+            const device = new this.DeviceModel({
+                ...values,
+                id: newId,  // Atribui o novo `id` ao dispositivo
+            });
+
+            // 3. Salvar o dispositivo
+            await device.save();
+
+            return newId;  // Retorna o novo `id` caso o dispositivo seja criado com sucesso
         } catch (error) {
             console.error('Erro ao criar dispositivo:', error);
-            throw error;
+            return -1;  // Retorna -1 em caso de erro
         }
     }
+
 
     public async updateDeviceTasks(taskID: number, deviceList: number[]) {
         for (const deviceId of deviceList) {

@@ -12,6 +12,8 @@ import { Config } from "./config.js";
 import { getOrCreateGlobalLogger } from "$common/util/logger.js";
 
 import { DatabaseDAO } from "../db/databaseDAO.js";
+import { CreateIDevice } from "../db/interfaces/IDevice.js";
+
 /**
  * Example server function with documentaton.
  * 
@@ -27,17 +29,10 @@ export async function serverInit(param1: string, param2: TestType) {
     //Convem que isto seja um SINGLETON, Perguntar ao rafa como?
     const dbHandler = new DatabaseDAO();
 
-    const newDevice = {
-        id: 1,
-        ip: "192.168.1.10",
-        auth: {
-            public_key: 12345,
-            private_key: 67890,
-            salt: "random_salt"
-        },
-        connectAt: new Date()
-    }
-    
+    // Dados do novo dispositivo
+    const newDeviceData = CreateIDevice("192.168.1.10", 12345, 67890, "random_salt", [], new Date());
+    const newDeviceData2 = CreateIDevice("192.16.1.10", 12345, 67890, "random_salt", [], new Date());
+
     try {
         const removeResult = await dbHandler.removeDevice(1); // Use await
         if (removeResult) {
@@ -50,8 +45,23 @@ export async function serverInit(param1: string, param2: TestType) {
     }
 
     try {
-        await dbHandler.createDevice(newDevice);
-        logger.success("Device criado com sucesso:", newDevice);
+        const newDeviceId = await dbHandler.createDevice(newDeviceData);
+        if (newDeviceId !== -1) {
+            console.log(`Dispositivo criado com sucesso. ID: ${newDeviceId}`);
+        } else {
+            console.error("Falha ao criar dispositivo.");
+        }
+    } catch (error) {
+        logger.error("Erro ao criar o dispositivo:", error);
+    }
+
+    try {
+        const newDeviceId = await dbHandler.createDevice(newDeviceData2);
+        if (newDeviceId !== -1) {
+            console.log(`Dispositivo criado com sucesso. ID: ${newDeviceId}`);
+        } else {
+            console.error("Falha ao criar dispositivo.");
+        }
     } catch (error) {
         logger.error("Erro ao criar o dispositivo:", error);
     }
