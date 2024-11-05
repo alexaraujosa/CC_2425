@@ -39,6 +39,23 @@ class DatabaseDAO {
         }
     }
 
+    public async updateDeviceTasks(taskID: number, deviceList: number[]) {
+        for (const deviceId of deviceList) {
+            const device = await this.getDeviceByID(deviceId);
+    
+            if (device) {
+                if (!device.tasks.includes(taskID)) {
+                    device.tasks.push(taskID);
+    
+                    await device.save();
+                }
+            } else {
+                console.warn(`Dispositivo com ID ${deviceId} não encontrado.`);
+            }
+        }
+    }
+    
+
     public async getDevices() {
         return await this.DeviceModel.find();
     }
@@ -54,6 +71,7 @@ class DatabaseDAO {
     // Métodos CRUD para Task
     public async createTask(values: Partial<ITask>) {
         const task = new this.TaskModel(values);
+        this.updateDeviceTasks(task.id, task.devices);
         return await task.save();
     }
 
@@ -74,11 +92,13 @@ class DatabaseDAO {
         if (task) {
             // Inicializa a estrutura de métricas para o deviceId se não existir
             if (!task.metrics[deviceId]) {
-                task.metrics[deviceId] = {}; // Muda de array para objeto
+                task.metrics[deviceId] = {};
             }
     
             // Adiciona as métricas fornecidas
             for (const [metricName, metricValue] of Object.entries(metrics)) {
+                console.log(metricName, metricValue);
+                
                 // Inicializa a estrutura da métrica se não existir
                 if (!task.metrics[deviceId][metricName]) {
                     task.metrics[deviceId][metricName] = { values: [], timestamps: [] };
@@ -87,13 +107,18 @@ class DatabaseDAO {
                 // Adiciona o valor e o timestamp
                 task.metrics[deviceId][metricName].values.push(metricValue);
                 task.metrics[deviceId][metricName].timestamps.push(new Date().toISOString());
+                console.log(task.metrics[deviceId][metricName]);
             }
+    
+            // Marca o campo 'metrics' como modificado para garantir que o Mongoose detecte mudanças
+            task.markModified(`metrics.${deviceId}`);
     
             await task.save(); // Salva as mudanças no banco de dados
         } else {
             console.error("Task não encontrada!");
         }    
-    }    
+    }
+    
 
 
     public async getMetrics(taskId: number, deviceId: number) {
