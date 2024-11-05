@@ -11,8 +11,8 @@
     "clean": "pnpm assertNodeVersion && pnpm run dotbuild .build/clean.build.mts",
     "docs": "pnpm exec typedoc",
     "dotbuild": "pnpm assertNodeVersion && pnpm exec tsx --tsconfig=.build/tsconfig.json",
-    "run:agent": "node dist/agent",
-    "run:server": "node dist/server",
+    "run:agent": "node --enable-source-maps dist/agent",
+    "run:server": "node --enable-source-maps dist/server",
     "script": "pnpm assertNodeVersion && pnpm exec tsx --tsconfig=scripts/tsconfig.json",
     "test": "echo \"Error: no test specified\" && exit 1"
   },
@@ -45,6 +45,7 @@
   "dependencies": {
     "cac": "^6.7.14",
     "chalk": "^5.3.0",
-    "dotenv": "^16.4.5"
+    "dotenv": "^16.4.5",
+    "mongoose": "^8.8.0"
   }
 }
