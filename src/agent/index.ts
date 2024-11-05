@@ -42,8 +42,8 @@ export async function agentInit(options: CLIOptions) {
     await tcpClient.connect(new ConnectionTarget(host, port));
     tcpClient.send(Buffer.from("Hello from TCP Client."));
 
-    let al = new AlertFlow(1, 5);
-    let al2 = new AlertFlow(2, 10);             
+    let al = new AlertFlow(1, 1, 5);
+    let al2 = new AlertFlow(2, 1, 10);             
 
     tcpClient.send(al.makeAlertFlowDatagram());
     tcpClient.send(al2.makeAlertFlowDatagram());
