@@ -1,20 +1,39 @@
+/**
+ * @module NetTask
+ * 
+ * Common definition of the NetTask Protocol. Used in both the AGENT and SERVER solutions for the implementation
+ * of a responsive and resilient communication.
+ * 
+ * @copyright Copyright (c) 2024 DarkenLM https://github.com/DarkenLM
+ */
+
+const NET_TASK_VERSION = 1;
+
+enum NetTaskDatagramType {
+    REQUEST_REGISTER,
+    REQUEST_TASK,
+    REQUEST_METRICS,
+    RESPONSE_REGISTER,
+    RESPONSE_TASK,
+    RESPONSE_METRICS
+};
+
 class NetTask {
     private version: number;
     private agentId: number;
     private sequenceNumber: number;
     private acknowledgementNumber: number;
-    private type: number;
+    private type: NetTaskDatagramType;
     private payloadSize: number;
 
     public constructor(
-        version: number,
         agentId: number,
         sequenceNumber: number,
         acknowledgementNumber: number,
-        type: number,
+        type: NetTaskDatagramType,
         payloadSize: number
     ) {
-        this.version = version;
+        this.version = NET_TASK_VERSION;
         this.agentId = agentId;
         this.sequenceNumber = sequenceNumber;
         this.acknowledgementNumber = acknowledgementNumber;
@@ -26,8 +45,8 @@ class NetTask {
     public getAgentId(): number { return this.agentId; }
     public getSequenceNumber(): number { return this.sequenceNumber; }
     public getAcknowledgementNumber(): number { return this.acknowledgementNumber; }
-    public getType(): number { return this.type; }
-    public getPayloadSize(): number { return this,this.payloadSize; }
+    public getType(): NetTaskDatagramType { return this.type; }
+    public getPayloadSize(): number { return this.payloadSize; }
 
     public toString(): string {
         return  "--< NET TASK >--\n" +
