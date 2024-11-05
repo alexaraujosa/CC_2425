@@ -11,6 +11,7 @@ import { getOrCreateGlobalLogger } from "$common/util/logger.js";
 import { UDPClient } from "./protocol/udp.js";
 import { ConnectionTarget } from "$common/protocol/connection.js";
 import { TCPClient } from "./protocol/tcp.js";
+import AlertFlow from "$common/protocols/AlertFlow.js";
 
 //#region ============== Types ==============
 interface CLIOptions {
@@ -40,6 +41,12 @@ export async function agentInit(options: CLIOptions) {
     const tcpClient = new TCPClient();
     await tcpClient.connect(new ConnectionTarget(host, port));
     tcpClient.send(Buffer.from("Hello from TCP Client."));
+
+    let al = new AlertFlow(1, 5);
+    let al2 = new AlertFlow(2, 10);             
+
+    tcpClient.send(al.makeAlertFlowDatagram());
+    tcpClient.send(al2.makeAlertFlowDatagram());
 
     const udpClient = new UDPClient();
     udpClient.connect(new ConnectionTarget(host, port + 1));
