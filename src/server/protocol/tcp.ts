@@ -4,6 +4,7 @@ import { TCPConnection } from "$common/protocol/tcp.js";
 import { DefaultLogger, getOrCreateGlobalLogger } from "$common/util/logger.js";
 import net from "net";
 import { BufferReader } from "$common/util/buffer.js";
+import NetTask from "$common/protocols/NetTask.js";
 
 const TCP_SERVER_EVENT_CLOSED = "__server_closed__";
 
@@ -69,15 +70,20 @@ class TCPServerConnection extends TCPConnection {
         
         const reader = new BufferReader(msg);
         while(!reader.eof()) {
-            while(!reader.eof() && reader.peek() !== 65) {
+            while(!reader.eof() && reader.peek() !== 65 && reader.peek() !== 78) {
                 reader.readUInt8();
             }
 
             if (reader.eof())  break;
-            if (AlertFlow.verifySignature(reader)) {
+            if (reader.peek() == 65 && AlertFlow.verifySignature(reader)) {
                 let af = AlertFlow.readAlertFlowDatagram(reader);
                 this.logger.info(af);
             }
+            if (reader.peek() == 78 && NetTask.verifySignature(reader)) {
+                let nt = NetTask.readNetTaskDatagram(reader);
+                this.logger.info(nt);
+            }
+
         }
         
         this.send(Buffer.from("Hello from TCP Server."));

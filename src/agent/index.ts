@@ -12,6 +12,7 @@ import { UDPClient } from "./protocol/udp.js";
 import { ConnectionTarget } from "$common/protocol/connection.js";
 import { TCPClient } from "./protocol/tcp.js";
 import AlertFlow from "$common/protocols/AlertFlow.js";
+import NetTask from "$common/protocols/NetTask.js";
 
 //#region ============== Types ==============
 interface CLIOptions {
@@ -47,6 +48,12 @@ export async function agentInit(options: CLIOptions) {
 
     tcpClient.send(al.makeAlertFlowDatagram());
     tcpClient.send(al2.makeAlertFlowDatagram());
+
+    let nt = new NetTask(1, 0, 0, 1, 5);
+    let nt2 = new NetTask(2, 0, 0, 1, 10);
+
+    tcpClient.send(nt.makeNetTaskDatagram());
+    tcpClient.send(nt2.makeNetTaskDatagram());
 
     const udpClient = new UDPClient();
     udpClient.connect(new ConnectionTarget(host, port + 1));
