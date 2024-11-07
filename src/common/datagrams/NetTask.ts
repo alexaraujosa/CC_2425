@@ -10,6 +10,7 @@
 import { BufferReader, BufferWriter } from "$common/util/buffer.js";
 import { getOrCreateGlobalLogger } from "$common/util/logger.js";
 
+//#region ============== Constants ==============
 const NET_TASK_VERSION = 1;
 const NET_TASK_SIGNATURE = Buffer.from("NTTK", "utf8");
 
@@ -21,7 +22,12 @@ enum NetTaskDatagramType {
     RESPONSE_TASK,
     RESPONSE_METRICS
 };
+//#endregion ============== Constants ==============
 
+/**
+ * This class represents a message datagram used between the Agent and Server solutions
+ * to transmit tasks and metric colletions.
+ */
 class NetTask {
     private version: number;
     private agentId: number;
@@ -62,12 +68,23 @@ class NetTask {
                 "  PAYLOAD_SIZE: " + this.payloadSize + "\n";
     }
 
+    /**
+     * First phase of the deserialization, used to verify the signature of a NetTask Datagram. 
+     * Should always be used before {@link readNetTaskDatagram} method.
+     * @param reader BufferReader instanciated with a message buffer received from the server.
+     * @returns A boolean representing whether or not the signature is valid.
+     */
     public static verifySignature(reader: BufferReader): boolean {
         const sig = reader.read(4);
 
         return NET_TASK_SIGNATURE.equals(sig);
     }
 
+    /**
+     * Second phase of the deserialization, returning a NetTask Datagram from a given message buffer.
+     * @param reader BufferReader instanciated with a message buffer received from the server.
+     * @returns A NetTask instance representing the deserialized message.
+     */
     public static readNetTaskDatagram(reader: BufferReader): NetTask {
         const logger = getOrCreateGlobalLogger();
         const version = reader.readUInt32();
@@ -84,6 +101,9 @@ class NetTask {
         return new NetTask(agentId, sequenceNumber, acknowledgementNumber, type, payloadSize);
     }
 
+    /**
+     * Serializes a {@link NetTask} object into network-transmittable buffers.
+     */
     public makeNetTaskDatagram(): Buffer {
         const writer = new BufferWriter();
         writer.write(NET_TASK_SIGNATURE);

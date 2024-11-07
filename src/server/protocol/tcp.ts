@@ -1,10 +1,9 @@
-import AlertFlow from "$common/protocols/AlertFlow.js";
+import AlertFlow from "$common/datagrams/AlertFlow.js";
 import { ConnectionTarget, RemoteInfo } from "$common/protocol/connection.js";
 import { TCPConnection } from "$common/protocol/tcp.js";
 import { DefaultLogger, getOrCreateGlobalLogger } from "$common/util/logger.js";
 import net from "net";
 import { BufferReader } from "$common/util/buffer.js";
-import NetTask from "$common/protocols/NetTask.js";
 
 const TCP_SERVER_EVENT_CLOSED = "__server_closed__";
 
@@ -75,13 +74,9 @@ class TCPServerConnection extends TCPConnection {
             }
 
             if (reader.eof())  break;
-            if (reader.peek() == 65 && AlertFlow.verifySignature(reader)) {
+            if (reader.peek() === 65 && AlertFlow.verifySignature(reader)) {
                 let af = AlertFlow.readAlertFlowDatagram(reader);
                 this.logger.info(af);
-            }
-            if (reader.peek() == 78 && NetTask.verifySignature(reader)) {
-                let nt = NetTask.readNetTaskDatagram(reader);
-                this.logger.info(nt);
             }
 
         }

@@ -10,6 +10,7 @@
 import { BufferReader, BufferWriter } from "$common/util/buffer.js";
 import { getOrCreateGlobalLogger } from "$common/util/logger.js";
 
+//#region ============== Constants ==============
 const ALERT_FLOW_VERSION = 1;
 const ALERT_FLOW_SIGNATURE = Buffer.from("ATFW", "utf8");
 
@@ -17,7 +18,12 @@ enum AlertFlowDatagramType {
     REQUEST_ALERT,
     RESPONSE_ALERT
 };
+//#endregion ============== Constants ==============
 
+/**
+ * This class represents a message datagram used between the Agent and Server solutions
+ * to alert critical changes in the state of network devices.
+ */
 class AlertFlow {
     private version: number;
     private agentId: number;
@@ -48,12 +54,23 @@ class AlertFlow {
                 "  PAYLOAD_SIZE: " + this.payloadSize + "\n";
     }
 
+    /**
+     * First phase of the deserialization, used to verify the signature of an AlertFlow Datagram. 
+     * Should always be used before {@link readAlertFlowDatagram} method.
+     * @param reader BufferReader instanciated with a message buffer received from the server.
+     * @returns A boolean representing whether or not the signature is valid.
+     */
     public static verifySignature(reader: BufferReader): boolean {
         const sig = reader.read(4);
     
         return ALERT_FLOW_SIGNATURE.equals(sig);
     }
 
+    /**
+     * Second phase of the deserialization, returning an AlertFlow Datagram from a given message buffer.
+     * @param reader BufferReader instanciated with a message buffer received from the server.
+     * @returns An AlertFlow instance representing the deserialized message.
+     */
     public static readAlertFlowDatagram(reader: BufferReader): AlertFlow {
         // const reader = new BufferReader(buf, ALERT_FLOW_SIGNATURE.byteLength);
         const logger = getOrCreateGlobalLogger();
@@ -71,6 +88,9 @@ class AlertFlow {
         return new AlertFlow(agentId, type, payloadSize);
     }
 
+    /**
+     * Serializes an {@link AlertFlow} object into network-transmittable buffers.
+     */
     public makeAlertFlowDatagram(): Buffer {
         const writer = new BufferWriter();
         writer.write(ALERT_FLOW_SIGNATURE);

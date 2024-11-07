@@ -11,8 +11,8 @@ import { getOrCreateGlobalLogger } from "$common/util/logger.js";
 import { UDPClient } from "./protocol/udp.js";
 import { ConnectionTarget } from "$common/protocol/connection.js";
 import { TCPClient } from "./protocol/tcp.js";
-import AlertFlow from "$common/protocols/AlertFlow.js";
-import NetTask from "$common/protocols/NetTask.js";
+import AlertFlow from "$common/datagrams/AlertFlow.js";
+import NetTask from "$common/datagrams/NetTask.js";
 
 //#region ============== Types ==============
 interface CLIOptions {
