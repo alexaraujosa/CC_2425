@@ -11,7 +11,7 @@ import { getOrCreateGlobalLogger } from "$common/util/logger.js";
 import { UDPClient } from "./protocol/udp.js";
 import { ConnectionTarget } from "$common/protocol/connection.js";
 import { TCPClient } from "./protocol/tcp.js";
-import AlertFlow from "$common/datagrams/AlertFlow.js";
+import { AlertFlow, AlertFlowDatagramType } from "$common/datagrams/AlertFlow.js";
 import NetTask from "$common/datagrams/NetTask.js";
 
 //#region ============== Types ==============
@@ -43,8 +43,8 @@ export async function agentInit(options: CLIOptions) {
     await tcpClient.connect(new ConnectionTarget(host, port));
     tcpClient.send(Buffer.from("Hello from TCP Client."));
 
-    let al = new AlertFlow(1, 1, 5);
-    let al2 = new AlertFlow(2, 1, 10);             
+    let al = new AlertFlow(1, AlertFlowDatagramType.REQUEST_ALERT, 5);
+    let al2 = new AlertFlow(2, AlertFlowDatagramType.REQUEST_ALERT, 10);             
 
     tcpClient.send(al.makeAlertFlowDatagram());
     tcpClient.send(al2.makeAlertFlowDatagram());

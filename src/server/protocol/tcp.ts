@@ -1,4 +1,4 @@
-import AlertFlow from "$common/datagrams/AlertFlow.js";
+import { AlertFlow, AlertFlowDatagramType } from "$common/datagrams/AlertFlow.js";
 import { ConnectionTarget, RemoteInfo } from "$common/protocol/connection.js";
 import { TCPConnection } from "$common/protocol/tcp.js";
 import { DefaultLogger, getOrCreateGlobalLogger } from "$common/util/logger.js";
@@ -69,14 +69,22 @@ class TCPServerConnection extends TCPConnection {
         
         const reader = new BufferReader(msg);
         while(!reader.eof()) {
-            while(!reader.eof() && reader.peek() !== 65 && reader.peek() !== 78) {
+            while(!reader.eof() && reader.peek() !== 65) {
                 reader.readUInt8();
             }
 
             if (reader.eof())  break;
-            if (reader.peek() === 65 && AlertFlow.verifySignature(reader)) {
-                let af = AlertFlow.readAlertFlowDatagram(reader);
-                this.logger.info(af);
+            if (AlertFlow.verifySignature(reader)) {
+                let afRequest = AlertFlow.readAlertFlowDatagram(reader);
+                this.logger.info(afRequest);
+
+                let afResponse = new AlertFlow(
+                    afRequest.getAgentId(), 
+                    AlertFlowDatagramType.RESPONSE_ALERT,
+                    0 
+                );
+
+                this.send(afResponse.makeAlertFlowDatagram());
             }
 
         }

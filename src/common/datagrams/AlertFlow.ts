@@ -103,4 +103,7 @@ class AlertFlow {
     }
 }
 
-export default AlertFlow;
+export {
+    AlertFlow, 
+    AlertFlowDatagramType
+};

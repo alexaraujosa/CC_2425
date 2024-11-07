@@ -8,6 +8,8 @@
 import net from "net";
 import { TCPConnection } from "$common/protocol/tcp.js";
 import { ConnectionTarget } from "$common/protocol/connection.js";
+import { BufferReader } from "$common/util/buffer.js";
+import { AlertFlow } from "$common/datagrams/AlertFlow.js";
 
 /**
  * A TCP Client with integrated events and asynchronous flow control.
@@ -40,6 +42,20 @@ class TCPClient extends TCPConnection {
     
     public onMessage(msg: Buffer): void {
         this.logger.info(`TCP Client got message from target:`, msg.toString("utf8"));
+
+        const reader = new BufferReader(msg);
+        while(!reader.eof()) {
+            while(!reader.eof() && reader.peek() !== 65) {
+                reader.readUInt8();
+            }
+
+            if (reader.eof())  break;
+            if (AlertFlow.verifySignature(reader)) {
+                let af = AlertFlow.readAlertFlowDatagram(reader);
+                this.logger.info(af);
+            }
+
+        }
     }
 
     public onSocketConnection(): void {
