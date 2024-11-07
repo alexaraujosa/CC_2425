@@ -4,36 +4,41 @@ import { Document } from 'mongoose';
 interface IDevice extends Document {
     id: number;
     ip: string;
+    port: number;
     auth: {
-        public_key: number;
-        private_key: number;
-        salt: string;
+        public_key: Buffer[];
+        private_key: Buffer[];
+        salt: Buffer[];
+        sessionId: Buffer[];
     };
     tasks: number[];
     connectAt: Date;
 }
 
 function createIDevice(
-    new_ip: string, 
-    public_key: number,
-    private_key: number,
-    salt: string,
+    new_ip: string,
+    port: number,
+    public_key: Buffer[],
+    private_key: Buffer[],
+    salt: Buffer[],
+    sessionId: Buffer[],
     tasks: number[],
     connectAt: Date
 ) {
     return {
         ip: new_ip,
+        port: port,
         auth: {
             public_key: public_key,
             private_key: private_key,
-            salt: salt
+            salt: salt,
+            sessionId: sessionId,
         },
         tasks: tasks,
         connectAt: connectAt,
         
-        // Adding toString method for better readability
         toString() {
-            return `Device [IP: ${this.ip}, Public Key: ${this.auth.public_key}, Tasks: [${this.tasks.join(', ')}], Connected At: ${this.connectAt.toISOString()}]`;
+            return `Device [IP: ${this.ip}, Tasks: [${this.tasks.join(', ')}], Connected At: ${this.connectAt.toISOString()}]`;
         }
     };
 }

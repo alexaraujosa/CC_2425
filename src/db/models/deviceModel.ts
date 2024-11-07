@@ -5,10 +5,12 @@ import { IDevice } from '../interfaces/IDevice.js';
 const DeviceSchema = new Schema<IDevice>({
     id: { type: Number, required: true, unique: true },
     ip: { type: String, required: true, unique: true },
+    port: {type: Number, required: true},
     auth: {
-        public_key: { type: Number, required: true },
-        private_key: { type: Number, required: true },
-        salt: { type: String, required: true }
+        public_key: { type: Buffer, required: true },
+        private_key: { type: Buffer, required: true },
+        salt: { type: Buffer, required: true },
+        sessionId: {type: Buffer},
     },
     tasks: [{ type: Number }],
     connectAt: { type: Date, default: Date.now },
