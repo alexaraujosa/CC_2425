@@ -12,7 +12,8 @@ import { Config } from "./config.js";
 import { getOrCreateGlobalLogger } from "$common/util/logger.js";
 
 import { DatabaseDAO } from "../db/databaseDAO.js";
-import { CreateIDevice } from "../db/interfaces/IDevice.js";
+import { createIDevice } from "../db/interfaces/IDevice.js";
+import { createITask } from "../db/interfaces/ITask.js";
 
 /**
  * Example server function with documentaton.
@@ -30,22 +31,28 @@ export async function serverInit(param1: string, param2: TestType) {
     const dbHandler = new DatabaseDAO();
 
     // Dados do novo dispositivo
-    const newDeviceData = CreateIDevice("192.168.1.10", 12345, 67890, "random_salt", [], new Date());
-    const newDeviceData2 = CreateIDevice("192.16.1.10", 12345, 67890, "random_salt", [], new Date());
+    const newDeviceData1 = createIDevice("192.168.1.10", 12345, 67890, "random_salt", [], new Date());
+    const newDeviceData2 = createIDevice("192.168.1.10", 69, 841848, "random_saltino", [], new Date());
+    const newDeviceData3 = createIDevice("192.168.125", 69, 841848, "random_saltino", [], new Date());
+    
+    // TODO: Continuar a criar as tasks e alterar as funções que adicionam as metricas.
+    // TODO: Adicionar Porta ao Device.
 
     try {
-        const removeResult = await dbHandler.removeDevice(1); // Use await
-        if (removeResult) {
-            logger.success("Device com id 1 removido com sucesso.");
+        const removeResult1 = await dbHandler.removeDevice(1); // Use await
+        const removeResult2 = await dbHandler.removeDevice(2); // Use await
+        const removeResult3 = await dbHandler.removeDevice(3); // Use await
+        if (removeResult1 && removeResult2 && removeResult3) {
+            logger.success("Devices removidos com sucesso.");
         } else {
-            logger.warn("Nenhum device encontrado com id 1 para remover.");
+            logger.warn("Pelo menos um dos devices não foi encontrado para remover.");
         }
     } catch (error) {
-        logger.error("Erro ao remover o device:", error);
+        logger.error("Erro ao remover os devices:", error);
     }
 
     try {
-        const newDeviceId = await dbHandler.createDevice(newDeviceData);
+        const newDeviceId = await dbHandler.createDevice(newDeviceData1);
         if (newDeviceId !== -1) {
             console.log(`Dispositivo criado com sucesso. ID: ${newDeviceId}`);
         } else {
@@ -67,57 +74,92 @@ export async function serverInit(param1: string, param2: TestType) {
     }
 
     try {
-        const removeResult = await dbHandler.removeTask(1); // Use await
-        if (removeResult) {
-            logger.success("Task com id 1 removido com sucesso.");
+        const newDeviceId = await dbHandler.createDevice(newDeviceData3);
+        if (newDeviceId !== -1) {
+            console.log(`Dispositivo criado com sucesso. ID: ${newDeviceId}`);
         } else {
-            logger.warn("Nenhuma task encontrado com id 1 para remover.");
+            console.error("Falha ao criar dispositivo.");
         }
     } catch (error) {
-        logger.error("Erro ao remover a task:", error);
+        logger.error("Erro ao criar o dispositivo:", error);
     }
 
-    // Cria uma nova task
-    const newTaskData = {
-        id: 1, // Você pode gerar um ID único ou utilizar uma lógica para incrementos
-        frequency: 5, // Exemplo: frequência de 5 minutos
-        devices: [1], // Array de IDs de dispositivos (deixe vazio se não houver)
-        metrics: {} // Inicia com um objeto vazio
-    };
+    dbHandler.printDevices();
 
-    try {
-        const newTask = await dbHandler.createTask(newTaskData);
-        logger.info("Task criada com sucesso:", newTask);
-    } catch (error) {
-        logger.error("Erro ao criar a task:", error);
-    }
+
+
+
+
+
+    const task1 = createITask(10, [1,2], ["Bandwith", "jitter"]);
+    const task2 = createITask(22, [1], ["Bandwith", "Delay"]);
+    const task3 = createITask(11, [], ["Bandwith", "Delay"]);
+    const task4 = createITask(32, [3], ["Bandwith", "Delay"]);
+    task1;task2;task3;task4;
 
     try {
-        await dbHandler.addMetrics(1, 1, {
-            bandwidth: 150,
-            jitter: 30,
-            delay: 100
-        });
+        const newDeviceId = await dbHandler.createTask(task1);
+        if (newDeviceId !== -1) {
+            console.log(`Task criada com sucesso. ID: ${newDeviceId}`);
+        } else {
+            console.error("Falha ao criar Task.");
+        }
     } catch (error) {
-        logger.error("Erro ao adicionar metrics:", error);
+        logger.error("Erro ao criar o Task:", error);
     }
 
     try {
-        await dbHandler.addMetrics(1, 1, {
-            bandwidth: 180,
-            jitter: 30,
-            delay: 100
-        });
+        const newDeviceId = await dbHandler.createTask(task2);
+        if (newDeviceId !== -1) {
+            console.log(`Task criada com sucesso. ID: ${newDeviceId}`);
+        } else {
+            console.error("Falha ao criar Task.");
+        }
     } catch (error) {
-        logger.error("Erro ao adicionar metrics:", error);
+        logger.error("Erro ao criar o Task:", error);
     }
 
-    const metrics = await dbHandler.getMetrics(1, 1); // Obtém métricas para a task com id 1 e device com id 1
-    if (metrics) {
-        logger.info("Métricas obtidas com sucesso:", JSON.stringify(metrics, null, 2));
-    } else {
-        logger.warn("Nenhuma métrica disponível.");
+    try {
+        const newDeviceId = await dbHandler.createTask(task3);
+        if (newDeviceId !== -1) {
+            console.log(`Task criada com sucesso. ID: ${newDeviceId}`);
+        } else {
+            console.error("Falha ao criar Task.");
+        }
+    } catch (error) {
+        logger.error("Erro ao criar o Task:", error);
     }
+
+    try {
+        const newDeviceId = await dbHandler.createTask(task4);
+        if (newDeviceId !== -1) {
+            console.log(`Task criada com sucesso. ID: ${newDeviceId}`);
+        } else {
+            console.error("Falha ao criar Task.");
+        }
+    } catch (error) {
+        logger.error("Erro ao criar o Task:", error);
+    }
+    
+    logger.log("---------- Lista de Devices ----------");
+    await dbHandler.printTasks();
+    logger.log("--------------------------------------");
+
+    //provavelmente vou ter de adicionar o criar metric para ser mais simples, recebe string[] e number[]
+    await dbHandler.addMetrics(1,1,{"Bandwith": 20})
+    await dbHandler.addMetrics(1,1,{"Bandwith": 42})
+    await dbHandler.addMetrics(1,1,{"Bandwith": 43})
+
+    await dbHandler.addMetrics(1,2,{"test": 40})
+    await dbHandler.addMetrics(1,2,{"jitter": 40})
+
+    logger.log("---------- Print de metricas Task1 e Device1 ----------");
+    await dbHandler.printDeviceTaskMetrics(1,1);
+    logger.log("-------------------------------------------------------");
+    logger.log("---------- Print de metricas Task1 e Device2 ----------");
+    await dbHandler.printDeviceTaskMetrics(1,2);
+    logger.log("-------------------------------------------------------");
+    
 }
 
 if (isBinMode(import.meta.url)) {
