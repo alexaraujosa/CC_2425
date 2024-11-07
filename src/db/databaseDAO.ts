@@ -98,6 +98,7 @@ class DatabaseDAO {
         }
     }
 
+    
     /**
      * Updates the IP address of a specified device.
      * @param {number} deviceID - The unique identifier of the device.
