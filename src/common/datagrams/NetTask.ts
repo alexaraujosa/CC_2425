@@ -118,4 +118,7 @@ class NetTask {
     }
 }
 
-export default NetTask;
+export {
+    NetTask,
+    NetTaskDatagramType
+};

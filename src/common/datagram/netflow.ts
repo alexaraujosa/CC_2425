@@ -13,8 +13,8 @@ enum NetflowDatagramType {
 
 
 //#region ======= Signature =======
-function verifySignature(buf: Buffer) {
-    const sig = buf.subarray(0, NETFLOW_SIGNATURE.byteLength);
+function verifySignature(reader: BufferReader) {
+    const sig = reader.read(4);
 
     return NETFLOW_SIGNATURE.equals(sig);
 }
@@ -30,8 +30,8 @@ function makeHelloThereDatagram(ecdhe: ECDHE) {
 
     return writer.finish();
 }
-function readHelloThereDatagram(buf: Buffer) {
-    const reader = new BufferReader(buf, 8);
+function readHelloThereDatagram(reader: BufferReader) {
+    // const reader = new BufferReader(buf, 8);
 
     const publicKeyLen = reader.readUInt32();
     const publicKey = reader.read(publicKeyLen);
@@ -61,8 +61,8 @@ function makeGeneralKenobiDatagram(ecdhe: ECDHE, remoteAddress: string, salt: Bu
     return { packet: writer.finish(), challenge: challenge };
 }
 
-function readGeneralKenobiDatagram(buf: Buffer) {
-    const reader = new BufferReader(buf, 8);
+function readGeneralKenobiDatagram(reader: BufferReader) {
+    // const reader = new BufferReader(buf, 8);
 
     // Read public key
     const publicKeyLen = reader.readUInt32();
@@ -93,8 +93,8 @@ function makeTheNegotiatorDatagram(challenge: Challenge) {
 
     return writer.finish();
 }
-function readTheNegotiatorDatagram(buf: Buffer) {
-    const reader = new BufferReader(buf, 8);
+function readTheNegotiatorDatagram(reader: BufferReader) {
+    // const reader = new BufferReader(buf, 8);
 
     const serChLength = reader.readUInt32();
     const serCh = reader.read(serChLength);
@@ -117,8 +117,8 @@ function makeMessageDatagram(ecdhe: ECDHE, message: string) {
 
     return writer.finish();
 }
-function readMessageDatagram(buf: Buffer) {
-    const reader = new BufferReader(buf, 8);
+function readMessageDatagram(reader: BufferReader) {
+    // const reader = new BufferReader(buf, 8);
 
     const serEncLength = reader.readUInt32();
     const serEnc = reader.read(serEncLength);

@@ -6,9 +6,11 @@
  */
 
 import { makeHelloThereDatagram, makeTheNegotiatorDatagram, NetflowDatagramType, readGeneralKenobiDatagram, readMessageDatagram, verifySignature } from "$common/datagram/netflow.js";
+import { NetTask, NetTaskDatagramType } from "$common/datagrams/NetTask.js";
 import { ConnectionTarget } from "$common/protocol/connection.js";
 import { ECDHE } from "$common/protocol/ecdhe.js";
 import { UDPConnection } from "$common/protocol/udp.js";
+import { BufferReader } from "$common/util/buffer.js";
 import { RemoteInfo } from "dgram";
 
 /**
@@ -38,50 +40,77 @@ class UDPClient extends UDPConnection {
             this.logger.info(`Ignored message from ${ConnectionTarget.toQualifiedName(rinfo)}: Not from target.`);
         }
 
-        this.logger.info(`UDP Client got message from target:`, msg.toString("utf8"));
+        // this.logger.info(`UDP Client got message from target:`, msg.toString("utf8"));
+        const reader = new BufferReader(msg);
+        while (!reader.eof()) {
+            while (!reader.eof() && reader.peek() !== 67 && reader.peek() !== 78)
+                reader.readUInt8();
 
-        if (!verifySignature(msg)) {
-            this.logger.error("Message is invalid: Invalid signature.");
-            return;
-        }
-
-        const type = msg.readUint32BE(4);
-        switch (type) {
-            case NetflowDatagramType.HELLO_THERE: { 
-                // Do fuck all
-                break;
+            //#region ============== NETFLOW ==============
+            if (reader.peek() === 67 && verifySignature(reader)) {
+                const type = reader.readUInt32();// readUint32BE(4);
+                switch (type) {
+                    case NetflowDatagramType.HELLO_THERE: { 
+                        // Do fuck all
+                        break;
+                    }
+                    case NetflowDatagramType.GENERAL_KENOBI: { 
+                        this.logger.log("Got GENERAL_KENOBY frame.");
+                        const dg = readGeneralKenobiDatagram(reader);
+                        this.ecdhe.link(dg.publicKey, dg.salt);
+    
+                        const verCh = this.ecdhe.verifyChallenge(dg.challenge);
+                        // this.challengeSalt = verCh.control;
+    
+                        // Assume authentication succeeded, compute communication salt.
+                        this.ecdhe.regenerateKeys(verCh.control);
+    
+                        const reply = makeTheNegotiatorDatagram(verCh.challenge);
+                        this.send(reply);
+                        break;
+                    }
+                    case NetflowDatagramType.THE_NEGOTIATOR: {
+                        // Who needs to negotiate when you have a fucking gun?
+                        break;
+                    }
+                    case NetflowDatagramType.MESSAGE: { 
+                        const dg = readMessageDatagram(reader);
+                        const message = this.ecdhe.decrypt(dg.message);
+    
+                        this.logger.log(`UDP Client received message: '${message.toString("utf8")}'`);
+                        break;
+                    }
+                    case NetflowDatagramType.KYS: { // Commit die.
+                        
+                        break;
+                    }
+                }
             }
-            case NetflowDatagramType.GENERAL_KENOBI: { 
-                this.logger.log("Got GENERAL_KENOBY frame.");
-                const dg = readGeneralKenobiDatagram(msg);
-                this.ecdhe.link(dg.publicKey, dg.salt);
-
-                const verCh = this.ecdhe.verifyChallenge(dg.challenge);
-                // this.challengeSalt = verCh.control;
-
-                // Assume authentication succeeded, compute communication salt.
-                this.ecdhe.regenerateKeys(verCh.control);
-
-                const reply = makeTheNegotiatorDatagram(verCh.challenge);
-                this.send(reply);
-                break;
+            //#endregion  ============== NETFLOW ==============
+            if (reader.peek() === 78 && NetTask.verifySignature(reader)) {
+                const nt = NetTask.readNetTaskDatagram(reader);
+                this.logger.info(nt);
+                switch (nt.getType()) {
+                    case NetTaskDatagramType.RESPONSE_METRICS: {
+                        // TODO
+                        break;
+                    }
+                    case NetTaskDatagramType.RESPONSE_REGISTER: {
+                        // TODO
+                        break;
+                    }
+                    case NetTaskDatagramType.RESPONSE_TASK: {
+                        // TODO
+                        break;
+                    }
+                    default:{
+                        // TODO: Ignore?
+                        break;
+                    }
+                }
             }
-            case NetflowDatagramType.THE_NEGOTIATOR: {
-                // Who needs to negotiate when you have a fucking gun?
-                break;
-            }
-            case NetflowDatagramType.MESSAGE: { 
-                const dg = readMessageDatagram(msg);
-                const message = this.ecdhe.decrypt(dg.message);
-
-                this.logger.log(`UDP Client received message: '${message.toString("utf8")}'`);
-                break;
-            }
-            case NetflowDatagramType.KYS: { // Commit die.
-                
-                break;
-            }
-        }
+        }  
+          
     }
 
     /**
