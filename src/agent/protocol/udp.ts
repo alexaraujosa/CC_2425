@@ -90,6 +90,15 @@ class UDPClient extends UDPConnection {
                 const nt = NetTask.readNetTaskDatagram(reader);
                 // this.logger.info(nt);
                 switch (nt.getType()) {
+
+                    /**
+                     * Third phase of the Registration Process, where the Agent, after receiving the Server Public Key,
+                     * the challenge and the salt, creates the ecdhe link between the Server Public Key and
+                     * the ecdhe link that links the Server to the Agent Public Key. Afterwards, the Agent verifies
+                     * the integrity of the challenge received, leading to the regeneration of his keys. Next,
+                     * he creates the Register Challenge 2 Datagram, in order to communicate to the server the 
+                     * confirmed challenge.
+                     */
                     case NetTaskDatagramType.REGISTER_CHALLENGE: {
                         const registerDg = NetTaskRegisterChallenge.readNetTaskRegisterChallenge(reader, nt);
                         this.ecdhe.link(registerDg.publicKey, registerDg.salt);
@@ -136,10 +145,11 @@ class UDPClient extends UDPConnection {
     public connect(target: ConnectionTarget) {
         this.target = target;
         
+        /**
+         * First phase of the Registration Process, where an Agent sends the Server his public key.
+         */
         const registerDg = new NetTaskRegister(123123, 123123, 5555, this.ecdhe.publicKey);
         this.send(registerDg.makeNetTaskRegisterDatagram());
-        // const helloThere = makeHelloThereDatagram(this.ecdhe);
-        // this.send(helloThere);
     }
 
     public close() {

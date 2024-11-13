@@ -123,6 +123,13 @@ class TestUDPServer extends UDPServer {
                 // this.logger.info(nt);
 
                 switch (header.getType()) {
+
+                    /**
+                     * Second phase of the Registration Process, where the Server, after receiving the Agent Public Key,
+                     * creates an ecdhe link for the Agent and a challenge using 12 random bytes. Afterwards, a Register
+                     * Challenge Datagram is created, containing the Server Public Key, the challenge and the ecdhe link.
+                     * Before sending that datagram, the server saves the agent ecdhe, that will be used on the fourth phase.
+                     */
                     case NetTaskDatagramType.REQUEST_REGISTER: {
                         const registerDg = NetTaskRegister.readNetTaskRegisterDatagram(reader, header);
 
@@ -142,6 +149,13 @@ class TestUDPServer extends UDPServer {
                         this.send(regChallengeDg.makeNetTaskRegisterChallenge(), rinfo);
                         break;
                     }
+
+                    /**
+                     * Fourth and last phase of the Registration Process, where the Server, after receiving the confirmed 
+                     * challenge from the Agent, confirms the received challenge. If it's not valid, the Server sends
+                     * a Datagram informing the closure of the connection. Otherwise, the Registration Process is 
+                     * successfully completed and the Agent is inserted into the database and is ready to receive tasks.
+                     */
                     case NetTaskDatagramType.REGISTER_CHALLENGE2: {
                         const regChallenge2Dg = NetTaskRegisterChallenge2.readNetTaskRegisterChallenge2(reader, header);
 
