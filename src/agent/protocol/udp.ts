@@ -5,8 +5,8 @@
  * @copyright Copyright (c) 2024 DarkenLM https://github.com/DarkenLM
  */
 
-import { makeHelloThereDatagram, makeTheNegotiatorDatagram, NetflowDatagramType, readGeneralKenobiDatagram, readMessageDatagram, verifySignature } from "$common/datagram/netflow.js";
-import { NetTask, NetTaskDatagramType } from "$common/datagrams/NetTask.js";
+import { makeTheNegotiatorDatagram, NetflowDatagramType, readGeneralKenobiDatagram, readMessageDatagram, verifySignature } from "$common/datagram/netflow.js";
+import { NetTask, NetTaskDatagramType, NetTaskRegister, NetTaskRegisterChallenge, NetTaskRegisterChallenge2, NetTaskRequestTask } from "$common/datagrams/NetTask.js";
 import { ConnectionTarget } from "$common/protocol/connection.js";
 import { ECDHE } from "$common/protocol/ecdhe.js";
 import { UDPConnection } from "$common/protocol/udp.js";
@@ -95,16 +95,29 @@ class UDPClient extends UDPConnection {
                         // TODO
                         break;
                     }
-                    case NetTaskDatagramType.RESPONSE_REGISTER: {
-                        // TODO
+                    case NetTaskDatagramType.REGISTER_CHALLENGE: {
+                        const rcDg = NetTaskRegisterChallenge.readNetTaskRegisterChallenge(reader, nt);
+                        this.ecdhe.link(rcDg.publicKey, rcDg.salt);
+                        const valid = this.ecdhe.verifyChallenge(ECDHE.deserializeChallenge(rcDg.challenge));
+                        this.ecdhe.regenerateKeys(valid.control);
+
+                        const rc2Dg = new NetTaskRegisterChallenge2 (
+                            123123,
+                            123123,
+                            5555,
+                            ECDHE.serializeChallenge(valid.challenge)
+                        );
+
+                        this.send(rc2Dg.makeNetTaskRegisterChallenge2());
                         break;
                     }
-                    case NetTaskDatagramType.RESPONSE_TASK: {
-                        // TODO
+                    case NetTaskDatagramType.REQUEST_TASK: {
+                        const nttttt = NetTaskRequestTask.deserialize(reader, this.ecdhe, nt);
+                        this.logger.log(nttttt);
                         break;
                     }
                     default:{
-                        // TODO: Ignore?
+                        this.logger.error("Received unidentified datagram!!")
                         break;
                     }
                 }
@@ -128,8 +141,10 @@ class UDPClient extends UDPConnection {
     public connect(target: ConnectionTarget) {
         this.target = target;
         
-        const helloThere = makeHelloThereDatagram(this.ecdhe);
-        this.send(helloThere);
+        const ntDg = new NetTaskRegister(123123, 123123, 5555, this.ecdhe.publicKey);
+        this.send(ntDg.makeNetTaskRegisterDatagram());
+        // const helloThere = makeHelloThereDatagram(this.ecdhe);
+        // this.send(helloThere);
     }
 
     public close() {

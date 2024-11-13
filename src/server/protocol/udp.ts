@@ -1,5 +1,6 @@
+import crypto from "crypto";
 import { makeGeneralKenobiDatagram, makeKYSDatagram, makeMessageDatagram, NetflowDatagramType, readHelloThereDatagram, readTheNegotiatorDatagram, verifySignature } from "$common/datagram/netflow.js";
-import { NetTask, NetTaskDatagramType } from "$common/datagrams/NetTask.js";
+import { NetTask, NetTaskDatagramType, NetTaskRegister, NetTaskRegisterChallenge, NetTaskRegisterChallenge2, NetTaskRequestTask } from "$common/datagrams/NetTask.js";
 import { ConnectionTarget, ConnectionTargetLike, RemoteInfo } from "$common/protocol/connection.js";
 import { ChallengeControl, ECDHE } from "$common/protocol/ecdhe.js";
 import { UDPConnection } from "$common/protocol/udp.js";
@@ -120,18 +121,7 @@ class TestUDPServer extends UDPServer {
             //#endregion ============== NETFLOW ==============
             if (reader.peek() === 78 && NetTask.verifySignature(reader)) {
                 const nt = NetTask.readNetTaskDatagram(reader);
-                this.logger.info(nt);
-                
-                //#region Testing
-                let ntResponseTesting = new NetTask(
-                    nt.getAgentId(),
-                    nt.getSequenceNumber(),
-                    nt.getAcknowledgementNumber(),
-                    NetTaskDatagramType.RESPONSE_REGISTER,
-                    0
-                );
-                this.send(ntResponseTesting.makeNetTaskDatagram(), rinfo);
-                //#endregion Testing
+                // this.logger.info(nt);
 
                 switch (nt.getType()) {
                     case NetTaskDatagramType.REQUEST_METRICS: {
@@ -139,8 +129,40 @@ class TestUDPServer extends UDPServer {
                         break;
                     }
                     case NetTaskDatagramType.REQUEST_REGISTER: {
-                        // TODO
+                        const rgDg = NetTaskRegister.readNetTaskRegisterDatagram(reader, nt);
+
+                        const ecdhe = new ECDHE("secp128r1");
+                        const salt = ecdhe.link(rgDg.publicKey);
+                        const challenge = ecdhe.generateChallenge(crypto.randomBytes(12));
+        
+                        const rcDg = new NetTaskRegisterChallenge(
+                            123123, 
+                            123123, 
+                            5555, 
+                            ecdhe.publicKey, 
+                            ECDHE.serializeChallenge(challenge.challenge),
+                            salt
+                        );
+
+                        this.clients.set(ConnectionTarget.toQualifiedName(rinfo), { ecdhe, challenge: challenge });
+        
+                        this.send(rcDg.makeNetTaskRegisterChallenge(), rinfo);
                         break;
+                    }
+                    case NetTaskDatagramType.REGISTER_CHALLENGE2: {
+                        const rc2Dg = NetTaskRegisterChallenge2.readNetTaskRegisterChallenge2(reader, nt);
+
+                        const client = this.clients.get(ConnectionTarget.toQualifiedName(rinfo));
+                        const confirm = client?.ecdhe.confirmChallenge(ECDHE.deserializeChallenge(rc2Dg.challenge), client.challenge!);
+                        if (!confirm) {
+                            // TODO: Enviar datagrama para matar a conexao
+                        }
+                        client?.ecdhe.regenerateKeys(client.challenge!.control);
+
+
+                        const nttt = new NetTaskRequestTask(123123, 123123, 0, "e que").link(client!.ecdhe);
+                        const asd = nttt.makeNetTaskRequestTask();
+                        this.send(asd, rinfo);
                     }
                     case NetTaskDatagramType.REQUEST_TASK: {
                         // TODO

@@ -40,7 +40,18 @@ export async function serverInit(options: CLIOptions) {
     const port = options.port;
 
     // Config loader
-    const json = await readJsonFile<Config>(path.join(process.cwd(), "/tmp/settings.json"));
+    const json = await readJsonFile<Config>(path.join(process.cwd(), "/docs/assets/config.json"));
+
+    // json.tasks.forEach(task => {    // TODO: Colocar como assincrono, sendo melhor usar um ciclo for
+    //     task.devices.forEach(device => {
+    //         device.device_id;
+
+    //         // TODO: Através do device_id, obtenho  na base de dados o seu ip.
+    //         // TODO: Crio o datagrama NetTask.
+    //         // TODO: Invoco o metodo udpServer.send(nt, ip+port). O ip+port vou buscar a base de dados atraves do device_id
+    //     })
+    // });
+
     logger.info(json);
 
     // Server setup

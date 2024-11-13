@@ -52,6 +52,7 @@ class TCPClient extends TCPConnection {
             if (reader.eof())  break;
             if (AlertFlow.verifySignature(reader)) {
                 let af = AlertFlow.readAlertFlowDatagram(reader);
+                // TODO: Verificar se o tipo é um alertflow response. Se for, está confirmada a receção por parte do servidor.
                 this.logger.info(af);
             }
 
