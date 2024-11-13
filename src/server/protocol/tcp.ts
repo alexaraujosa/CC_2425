@@ -1,4 +1,4 @@
-import { AlertFlow, AlertFlowDatagramType } from "$common/datagrams/AlertFlow.js";
+import { AlertFlow, AlertFlowDatagramType } from "$common/datagram/AlertFlow.js";
 import { ConnectionTarget, RemoteInfo } from "$common/protocol/connection.js";
 import { TCPConnection } from "$common/protocol/tcp.js";
 import { DefaultLogger, getOrCreateGlobalLogger } from "$common/util/logger.js";

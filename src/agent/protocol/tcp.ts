@@ -9,7 +9,7 @@ import net from "net";
 import { TCPConnection } from "$common/protocol/tcp.js";
 import { ConnectionTarget } from "$common/protocol/connection.js";
 import { BufferReader } from "$common/util/buffer.js";
-import { AlertFlow } from "$common/datagrams/AlertFlow.js";
+import { AlertFlow } from "$common/datagram/AlertFlow.js";
 
 /**
  * A TCP Client with integrated events and asynchronous flow control.

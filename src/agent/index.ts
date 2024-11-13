@@ -11,7 +11,7 @@ import { getOrCreateGlobalLogger } from "$common/util/logger.js";
 import { UDPClient } from "./protocol/udp.js";
 import { ConnectionTarget } from "$common/protocol/connection.js";
 import { TCPClient } from "./protocol/tcp.js";
-import { AlertFlow, AlertFlowDatagramType } from "$common/datagrams/AlertFlow.js";
+import { AlertFlow, AlertFlowDatagramType } from "$common/datagram/AlertFlow.js";
 // import { NetTask, NetTaskDatagramType, NetTaskRegister } from "$common/datagrams/NetTask.js";
 
 //#region ============== Types ==============

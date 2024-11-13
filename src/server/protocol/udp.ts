@@ -1,6 +1,6 @@
 import crypto from "crypto";
 import { makeGeneralKenobiDatagram, makeKYSDatagram, makeMessageDatagram, NetflowDatagramType, readHelloThereDatagram, readTheNegotiatorDatagram, verifySignature } from "$common/datagram/netflow.js";
-import { NetTask, NetTaskDatagramType, NetTaskRegister, NetTaskRegisterChallenge, NetTaskRegisterChallenge2, NetTaskRequestTask } from "$common/datagrams/NetTask.js";
+import { NetTask, NetTaskDatagramType, NetTaskRegister, NetTaskRegisterChallenge, NetTaskRegisterChallenge2, NetTaskRequestTask } from "$common/datagram/NetTask.js";
 import { ConnectionTarget, ConnectionTargetLike, RemoteInfo } from "$common/protocol/connection.js";
 import { ChallengeControl, ECDHE } from "$common/protocol/ecdhe.js";
 import { UDPConnection } from "$common/protocol/udp.js";
