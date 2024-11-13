@@ -234,6 +234,10 @@ class TCPServer {
      * @param socket The socket created for the new connection.
      */
     protected onSocketConnection(socket: net.Socket) {
+
+        // TODO: Validar na base de dados se o device existe. Se não existir, é porque não fez o Registo pelo NetTask.
+        // TODO: Portanto, fechar a conexão. Se existir, deixar passar.
+
         const conn = new TCPServerConnection(socket, this.seq++);
         this.connections.set(this.seq, conn);
 
