@@ -1,5 +1,4 @@
 import crypto from "crypto";
-import { makeGeneralKenobiDatagram, makeKYSDatagram, makeMessageDatagram, NetflowDatagramType, readHelloThereDatagram, readTheNegotiatorDatagram, verifySignature } from "$common/datagram/netflow.js";
 import { NetTask, NetTaskDatagramType, NetTaskRegister, NetTaskRegisterChallenge, NetTaskRegisterChallenge2, NetTaskRequestTask } from "$common/datagram/NetTask.js";
 import { ConnectionTarget, ConnectionTargetLike, RemoteInfo } from "$common/protocol/connection.js";
 import { ChallengeControl, ECDHE } from "$common/protocol/ecdhe.js";
@@ -56,86 +55,82 @@ class TestUDPServer extends UDPServer {
         // this.logger.log(`UDP Server got: ${msg} from ${ConnectionTarget.toQualifiedName(rinfo)}`);
         const reader = new BufferReader(msg);
         while (!reader.eof()) {
-            while (!reader.eof() && reader.peek() !== 67 && reader.peek() !== 78)
+            while (!reader.eof() && reader.peek() !== 78)
                 reader.readUInt8();
 
             if (reader.eof())  break;
-            //#region ============== NETFLOW ==============
-            if (reader.peek() === 67 && verifySignature(reader)) {
-                const type = reader.readUInt32();//msg.readUInt32BE(4);
-                switch (type) {
-                    case NetflowDatagramType.HELLO_THERE: { // HelloThere
-                        break;  // FIX
-                        try {
-                            const dg = readHelloThereDatagram(reader);
+            // //#region ============== NETFLOW ==============
+            // if (reader.peek() === 67 && verifySignature(reader)) {
+            //     const type = reader.readUInt32();//msg.readUInt32BE(4);
+            //     switch (type) {
+            //         case NetflowDatagramType.HELLO_THERE: { // HelloThere
+            //             break;  // FIX
+            //             try {
+            //                 const dg = readHelloThereDatagram(reader);
         
-                            const ecdhe = new ECDHE("secp128r1");
-                            const salt = ecdhe.link(dg.publicKey);
+            //                 const ecdhe = new ECDHE("secp128r1");
+            //                 const salt = ecdhe.link(dg.publicKey);
         
-                            const gkdg = makeGeneralKenobiDatagram(ecdhe, rinfo.address, salt);
-                            this.clients.set(ConnectionTarget.toQualifiedName(rinfo), { ecdhe, challenge: gkdg.challenge });
+            //                 const gkdg = makeGeneralKenobiDatagram(ecdhe, rinfo.address, salt);
+            //                 this.clients.set(ConnectionTarget.toQualifiedName(rinfo), { ecdhe, challenge: gkdg.challenge });
         
-                            this.send(gkdg.packet, rinfo);
-                        } catch (e) {
-                            this.logger.pError(
-                                `UDP Server got an error while processing packet from ${ConnectionTarget.toQualifiedName(rinfo)}:`, 
-                                e
-                            );
+            //                 this.send(gkdg.packet, rinfo);
+            //             } catch (e) {
+            //                 this.logger.pError(
+            //                     `UDP Server got an error while processing packet from ${ConnectionTarget.toQualifiedName(rinfo)}:`, 
+            //                     e
+            //                 );
         
-                            const packet = makeKYSDatagram();
-                            this.send(packet, rinfo);
-                        }
-                        break;
-                    }
-                    case NetflowDatagramType.GENERAL_KENOBI: { 
-                        // Do jack shit
-                        break;
-                    }
-                    case NetflowDatagramType.THE_NEGOTIATOR: {
-                        break;  //  FIX
-                        const dg = readTheNegotiatorDatagram(reader);
-                        const client = this.clients.get(ConnectionTarget.toQualifiedName(rinfo))!;
+            //                 const packet = makeKYSDatagram();
+            //                 this.send(packet, rinfo);
+            //             }
+            //             break;
+            //         }
+            //         case NetflowDatagramType.GENERAL_KENOBI: { 
+            //             // Do jack shit
+            //             break;
+            //         }
+            //         case NetflowDatagramType.THE_NEGOTIATOR: {
+            //             break;  //  FIX
+            //             const dg = readTheNegotiatorDatagram(reader);
+            //             const client = this.clients.get(ConnectionTarget.toQualifiedName(rinfo))!;
         
-                        const confirm = client.ecdhe.confirmChallenge(dg.challenge, client.challenge!);
-                        if (!confirm) {
-                            const dg = makeKYSDatagram();
-                            return this.send(dg, rinfo);
-                        }
+            //             const confirm = client.ecdhe.confirmChallenge(dg.challenge, client.challenge!);
+            //             if (!confirm) {
+            //                 const dg = makeKYSDatagram();
+            //                 return this.send(dg, rinfo);
+            //             }
         
-                        client.ecdhe.regenerateKeys(client.challenge!.control);
+            //             client.ecdhe.regenerateKeys(client.challenge!.control);
         
-                        const reply = makeMessageDatagram(client.ecdhe, "Authenticated!");
-                        this.send(reply, rinfo);
-                        break;
-                    }
-                    case NetflowDatagramType.MESSAGE: { // Message
-                        // TODO: Fuck you want?
-                        break;
-                    }
-                    case NetflowDatagramType.KYS: { // Commit die
-                        // Lmfao no
-                        break;
-                    }
-                }
-            }
-            //#endregion ============== NETFLOW ==============
+            //             const reply = makeMessageDatagram(client.ecdhe, "Authenticated!");
+            //             this.send(reply, rinfo);
+            //             break;
+            //         }
+            //         case NetflowDatagramType.MESSAGE: { // Message
+            //             // TODO: Fuck you want?
+            //             break;
+            //         }
+            //         case NetflowDatagramType.KYS: { // Commit die
+            //             // Lmfao no
+            //             break;
+            //         }
+            //     }
+            // }
+            // //#endregion ============== NETFLOW ==============
             if (reader.peek() === 78 && NetTask.verifySignature(reader)) {
-                const nt = NetTask.readNetTaskDatagram(reader);
+                const header = NetTask.readNetTaskDatagram(reader);
                 // this.logger.info(nt);
 
-                switch (nt.getType()) {
-                    case NetTaskDatagramType.REQUEST_METRICS: {
-                        // TODO
-                        break;
-                    }
+                switch (header.getType()) {
                     case NetTaskDatagramType.REQUEST_REGISTER: {
-                        const rgDg = NetTaskRegister.readNetTaskRegisterDatagram(reader, nt);
+                        const registerDg = NetTaskRegister.readNetTaskRegisterDatagram(reader, header);
 
                         const ecdhe = new ECDHE("secp128r1");
-                        const salt = ecdhe.link(rgDg.publicKey);
+                        const salt = ecdhe.link(registerDg.publicKey);
                         const challenge = ecdhe.generateChallenge(crypto.randomBytes(12));
         
-                        const rcDg = new NetTaskRegisterChallenge(
+                        const regChallengeDg = new NetTaskRegisterChallenge(
                             123123, 
                             123123, 
                             5555, 
@@ -143,26 +138,23 @@ class TestUDPServer extends UDPServer {
                             ECDHE.serializeChallenge(challenge.challenge),
                             salt
                         );
-
                         this.clients.set(ConnectionTarget.toQualifiedName(rinfo), { ecdhe, challenge: challenge });
-        
-                        this.send(rcDg.makeNetTaskRegisterChallenge(), rinfo);
+                        this.send(regChallengeDg.makeNetTaskRegisterChallenge(), rinfo);
                         break;
                     }
                     case NetTaskDatagramType.REGISTER_CHALLENGE2: {
-                        const rc2Dg = NetTaskRegisterChallenge2.readNetTaskRegisterChallenge2(reader, nt);
+                        const regChallenge2Dg = NetTaskRegisterChallenge2.readNetTaskRegisterChallenge2(reader, header);
 
                         const client = this.clients.get(ConnectionTarget.toQualifiedName(rinfo));
-                        const confirm = client?.ecdhe.confirmChallenge(ECDHE.deserializeChallenge(rc2Dg.challenge), client.challenge!);
+                        const confirm = client?.ecdhe.confirmChallenge(ECDHE.deserializeChallenge(regChallenge2Dg.challenge), client.challenge!);
                         if (!confirm) {
                             // TODO: Enviar datagrama para matar a conexao
                         }
+
                         client?.ecdhe.regenerateKeys(client.challenge!.control);
 
-
-                        const nttt = new NetTaskRequestTask(123123, 123123, 0, "e que").link(client!.ecdhe);
-                        const asd = nttt.makeNetTaskRequestTask();
-                        this.send(asd, rinfo);
+                        const requestTaskDg = new NetTaskRequestTask(123123, 123123, 0, "e que").link(client!.ecdhe);
+                        this.send(requestTaskDg.makeNetTaskRequestTask(), rinfo);
                     }
                     case NetTaskDatagramType.REQUEST_TASK: {
                         // TODO
