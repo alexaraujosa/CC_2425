@@ -1,0 +1,84 @@
+{
+    "tasks": {
+        "task1":  {
+            "frequency": "20s",
+            "device_metrics": {
+                "cpu_usage": true,
+                "ram_usage": true,
+                "interface_stats": true,
+                "volume": true
+            },
+            "global_options": {
+                "mode": "client",
+                "target": "12.243.45.2",
+                "duration": "10s",
+                "transport": "udp",
+                "frequency": "30s",
+                "counter": 5 
+            },
+            "link_metrics":{
+                "bandwith": {},
+                "jitter": {},
+                "packet_loss": {},
+                "latency": true 
+            },
+            "alert_conditions": {
+                "cpu_usage": 80,
+                "ram_usage": 80,
+                "interface_stats": 2000,
+                "packet_loss": 5,
+                "jitter": "100ms"
+            }
+        },
+        "task2":  {
+            "frequency": "5s",
+            "device_metrics": {
+                "cpu_usage": false,
+                "ram_usage": false,
+                "interface_stats": false,
+                "volume": false
+            },
+            "global_options": {
+                "mode": "server",
+                "transport": "udp"
+            }, 
+            "link_metrics":{
+                "bandwith": {}
+            },
+            "alert_conditions": {}
+        },
+        "task3":  {
+            "frequency": "5s",
+            "device_metrics": {
+                "cpu_usage": true,
+                "ram_usage": true,
+                "interface_stats": false,
+                "volume": false
+            },
+            "global_options": {
+                "target": "12.243.45.2",
+                "counter": 5 
+            },
+            "link_metrics":{
+                "latency": {}
+            },
+            "alert_conditions": {
+                "latency": "200ms"
+            }
+        }
+    },
+    "devices": {
+        "device1": {
+            "ip": "12.23.4.2",
+            "task":  ["task1"]
+        },
+        "device2": {
+            "ip": "12.243.45.2",
+            "task":  ["task2"]
+        },
+        "device3": {
+            "ip": "12.23.46.2",
+            "task":  ["task3"]
+        }
+    }
+}
