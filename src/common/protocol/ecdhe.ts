@@ -157,14 +157,14 @@ class ECDHE {
      * An instance of node's built-in Elliptic Curve Diffie-Hellman algorithm, used to compute the secret
      * in both sides of the connection.
      */
-    private ecdh: crypto.ECDH;
+    private ecdh!: crypto.ECDH;
 
     /**
      * The secret value computed from the public key using the Elliptic Curve Diffie-Hellman algorithm.
      * This value is the same on both sides of the connection, and is the source of the the cryptographic
      * keys used in the crypto operations of this class.
      */
-    private secret?: Buffer;
+    private _secret?: Buffer;
 
     /**
      * The current session key, which is a secret {@link https://en.wikipedia.org/wiki/HKDF|HDKF}-derived key
@@ -191,19 +191,37 @@ class ECDHE {
      * 
      * @throws {Error} If an error occured during the key pair generation process.
      */
-    constructor(curveName: CryptoCurve) {
-        this.ecdh = crypto.createECDH(curveName);
-        this.ecdh.generateKeys();
+    constructor(curveName: CryptoCurve);
+    /**
+     * Revives a previously established new Elliptic-Curve Diffie-Hellman (Ephemeral) session.  
+     * To be used in 0-RTT connections where the previous credentials have been stored.
+     * 
+     * @param secret The ECDH secret previously exchanged.
+     * @param salt The salt to be used in this connection.
+     * 
+     * @throws {Error} If an error occured during the key pair generation process.
+     */
+    constructor(secret: Buffer, salt: Buffer);
+    constructor(arg1: Buffer | CryptoCurve, arg2?: Buffer) {
+        if (typeof arg1 === "string") {
+            this.ecdh = crypto.createECDH(arg1);
+            this.ecdh.generateKeys();
+    
+            this._secret = undefined;
+            this.lastSalt = undefined;
+        } else {
+            this._secret = arg1;
+            this.lastSalt = arg2;
 
-        this.secret = undefined;
-        this.lastSalt = undefined;
+            this.regenerateKeys(arg2!);
+        }
     }
 
     /**
      * Returns a boolean representing whether or not this instance has been linked to another party.
      */
     public get initialized(): boolean {
-        return !!this.secret;
+        return !!this._secret;
     }
 
     /**
@@ -218,6 +236,10 @@ class ECDHE {
      */
     public get privateKey(): Buffer {
         return this.ecdh.getPrivateKey();
+    }
+
+    public get secret(): Buffer | undefined {
+        return this._secret ? Buffer.from(this._secret) : undefined;
     }
 
     /**
@@ -244,7 +266,7 @@ class ECDHE {
     public link(ecdhe: ECDHE, salt?: Buffer): Buffer;
     public link(key: Buffer | ECDHE, salt?: Buffer): Buffer {
         const trueKey = key instanceof ECDHE ? key.publicKey : key;
-        this.secret = this.ecdh.computeSecret(trueKey);
+        this._secret = this.ecdh.computeSecret(trueKey);
 
         salt ??= crypto.randomBytes(16);
         this.lastSalt = salt;
@@ -263,7 +285,7 @@ class ECDHE {
     public regenerateSessionKey(salt: Buffer): void {
         if (!this.initialized) throw new Error("ECDHE instance is not initialized.");
 
-        this.sessionKey = Buffer.from(crypto.hkdfSync(HASH_ALGO, this.secret!, salt, "session-key", HASH_LEN));
+        this.sessionKey = Buffer.from(crypto.hkdfSync(HASH_ALGO, this._secret!, salt, "session-key", HASH_LEN));
     }
 
     /**
@@ -275,7 +297,7 @@ class ECDHE {
     public regenerateChallengeKey(salt: Buffer): void {
         if (!this.initialized) throw new Error("ECDHE instance is not initialized.");
 
-        this.challengeKey = Buffer.from(crypto.hkdfSync(HASH_ALGO, this.secret!, salt, "challenge-key", HASH_LEN));
+        this.challengeKey = Buffer.from(crypto.hkdfSync(HASH_ALGO, this._secret!, salt, "challenge-key", HASH_LEN));
     }
 
     /**
@@ -289,6 +311,18 @@ class ECDHE {
     public regenerateKeys(salt: Buffer): void {
         this.regenerateSessionKey(salt);
         this.regenerateChallengeKey(salt);
+    }
+
+    /**
+     * Generates the session id for this connection. This unique identifier identifies the connection, and will
+     * be exposed unencrypted to be able to be identified during 0-RTT connections.
+     * 
+     * @param salt The connection salt generated through the challenge.
+     * @returns The session id that identifies this connection.
+     */
+    public generateSessionId(salt?: Buffer): Buffer {
+        const trueSalt = salt ?? this.lastSalt ?? crypto.randomBytes(16);
+        return Buffer.from(crypto.hkdfSync(HASH_ALGO, this._secret!, trueSalt, "session-id", HASH_LEN))
     }
 
     /**
@@ -533,21 +567,21 @@ export {
     ECDHE
 };
 
-const alice = new ECDHE("secp128r1");
-const bob = new ECDHE("secp128r1");
+// const alice = new ECDHE("secp128r1");
+// const bob = new ECDHE("secp128r1");
 
-const salt = alice.link(bob);
-bob.link(alice.publicKey, salt);
+// const salt = alice.link(bob);
+// bob.link(alice.publicKey, salt);
 
-// const commSalt = crypto.randomBytes(12);
-// const challenge = alice.generateChallenge(commSalt);
-// console.log("CHALLENGE:", challenge);
+// // const commSalt = crypto.randomBytes(12);
+// // const challenge = alice.generateChallenge(commSalt);
+// // console.log("CHALLENGE:", challenge);
 
-// const verifyCh = bob.verifyChallenge(challenge.challenge);
-// console.log("VERIFY CHALLENGE:", verifyCh);
+// // const verifyCh = bob.verifyChallenge(challenge.challenge);
+// // console.log("VERIFY CHALLENGE:", verifyCh);
 
-// const confirmCh = alice.confirmChallenge(verifyCh.challenge, challenge);
-// console.log("CONFIRM CHALLENGE:", confirmCh);
+// // const confirmCh = alice.confirmChallenge(verifyCh.challenge, challenge);
+// // console.log("CONFIRM CHALLENGE:", confirmCh);
 
 
 // // Generate Challenge
@@ -583,3 +617,19 @@ bob.link(alice.publicKey, salt);
 // const decMsg = bob.decrypt(desMsg);
 // console.log("RECEIVED MESSAGE:", decMsg.toString("utf8"));
 // console.log("NOT BROKEN:", origMessage === decMsg.toString("utf8"));
+
+// // Bring alice back from the ded
+// const aliceRevive = new ECDHE(alice.secret!, commSalt);
+
+// // Generate message and serialize it
+// const reviveOrigMessage = "Hello again world, I'm Alice and I'm going to fuck y'all.";
+// const reviveEncMsg = aliceRevive.encrypt(reviveOrigMessage);
+// const reviveSerMsg = ECDHE.serializeEncryptedMessage(reviveEncMsg);
+
+// // Deserialize message and deserialize it
+// const reviveDesMsg = ECDHE.deserializeEncryptedMessage(reviveSerMsg);
+// console.log("SER/DES NOT BROKEN:", [reviveDesMsg.content.equals(reviveDesMsg.content), reviveDesMsg.iv.equals(reviveDesMsg.iv), reviveDesMsg.authTag.equals(reviveDesMsg.authTag)]);
+
+// const reviveDecMsg = bob.decrypt(reviveDesMsg);
+// console.log("RECEIVED MESSAGE:", reviveDecMsg.toString("utf8"));
+// console.log("NOT BROKEN:", reviveOrigMessage === reviveDecMsg.toString("utf8"));
