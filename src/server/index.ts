@@ -4,11 +4,11 @@
  * @copyright Copyright (c) 2024 DarkenLM https://github.com/DarkenLM
  */
 
-import path from "path";
+// import path from "path";
 import { cac } from "cac";
 import isBinMode from "$common/util/isBinMode.js";
-import { readJsonFile } from "$common/util/paths.js";
-import { Config } from "./config.js";
+// import { readJsonFile } from "$common/util/paths.js";
+import { initConfig } from "./config.js";
 import { getOrCreateGlobalLogger } from "$common/util/logger.js";
 import { TestUDPServer } from "./protocol/udp.js";
 import { TCPServer } from "./protocol/tcp.js";
@@ -40,7 +40,8 @@ export async function serverInit(options: CLIOptions) {
     const port = options.port;
 
     // Config loader
-    const json = await readJsonFile<Config>(path.join(process.cwd(), "/docs/assets/config.json"));
+    // const json = await readJsonFile<Config>(path.join(process.cwd(), "/docs/assets/config.json"));
+    const json = await initConfig("docs/assets/config.json");
 
     // json.tasks.forEach(task => {    // TODO: Colocar como assincrono, sendo melhor usar um ciclo for
     //     task.devices.forEach(device => {

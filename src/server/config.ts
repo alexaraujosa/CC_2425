@@ -1,3 +1,12 @@
+import path from "path";
+import { readJsonFile } from "$common/util/paths.js"
+import { isValid, VALID, Validation } from "$common/util/validation.js";
+
+//#region ============== Types ==============
+declare global {
+    var config: Config;
+}
+
 interface DeviceMetrics {
     cpu_usage: boolean,
     ram_usage: boolean,
@@ -64,5 +73,28 @@ interface Config {
     tasks: Task[],
     devices: Device[]
 }
+//#endregion ============== Types ==============
+
+function validateConfig(config: Config): Validation {
+    // TODO: Validate config contents to assert data validity.
+
+    return VALID;
+}
+
+async function initConfig(file: string) {
+    const filePath = path.join(process.cwd(), file);
+    const json = await readJsonFile<Config>(filePath);
+
+    const validation = validateConfig(json);
+    if (!isValid(validation)) {
+        throw new Error("Invalid config.", { cause: validation.error })
+    }
+
+    globalThis.config = json;
+    return config;
+}
 
 export type { Config, Task, Device };
+export {
+    initConfig
+};
