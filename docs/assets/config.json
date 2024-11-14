@@ -13,7 +13,7 @@
                 "target": "12.243.45.2",
                 "duration": "10s",
                 "transport": "udp",
-                "frequency": "30s",
+                "interval": "30s",
                 "counter": 5 
             },
             "link_metrics":{
