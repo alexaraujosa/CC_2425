@@ -20,7 +20,7 @@
                 "bandwith": {},
                 "jitter": {},
                 "packet_loss": {},
-                "latency": true 
+                "latency": {} 
             },
             "alert_conditions": {
                 "cpu_usage": 80,
