@@ -162,13 +162,16 @@ class TestUDPServer extends UDPServer {
                         const client = this.clients.get(ConnectionTarget.toQualifiedName(rinfo));
                         const confirm = client?.ecdhe.confirmChallenge(ECDHE.deserializeChallenge(regChallenge2Dg.challenge), client.challenge!);
                         if (!confirm) {
-                            // TODO: Enviar datagrama para matar a conexao
+                            const rejectedDg = new NetTask(123123, 123123, NetTaskDatagramType.CONNECTION_REJECTED, 0);
+                            this.send(rejectedDg.makeNetTaskDatagram(), rinfo);
+                            break;
                         }
 
                         client?.ecdhe.regenerateKeys(client.challenge!.control);
 
                         const requestTaskDg = new NetTaskRequestTask(123123, 123123, 0, "e que").link(client!.ecdhe);
                         this.send(requestTaskDg.makeNetTaskRequestTask(), rinfo);
+                        break;
                     }
                     case NetTaskDatagramType.REQUEST_TASK: {
                         // TODO

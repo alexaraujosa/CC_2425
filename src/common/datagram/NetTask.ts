@@ -16,9 +16,12 @@ const NET_TASK_VERSION = 1;
 const NET_TASK_SIGNATURE = Buffer.from("NTTK", "utf8");
 
 enum NetTaskDatagramType {
+    //#region ------- REGISTER PROCESS -------
     REQUEST_REGISTER,
     REGISTER_CHALLENGE,
     REGISTER_CHALLENGE2,
+    CONNECTION_REJECTED,
+    //#endregion ------- REGISTER PROCESS -------
     REQUEST_TASK,
     REQUEST_METRICS,
     RESPONSE_TASK,

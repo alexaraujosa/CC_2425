@@ -115,6 +115,10 @@ class UDPClient extends UDPConnection {
                         this.send(register2Dg.makeNetTaskRegisterChallenge2());
                         break;
                     }
+                    case NetTaskDatagramType.CONNECTION_REJECTED: {
+                        this.logger.error("Connection rejected. Try again later.");
+                        process.exit(1);
+                    }
                     case NetTaskDatagramType.REQUEST_TASK: {
                         const nttttt = NetTaskRequestTask.deserialize(reader, this.ecdhe, nt);
                         this.logger.log(nttttt);
