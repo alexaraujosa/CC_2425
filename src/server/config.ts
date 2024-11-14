@@ -1,63 +1,68 @@
-interface Iperf {
+interface DeviceMetrics {
+    cpu_usage: boolean,
+    ram_usage: boolean,
+    interface_stats: boolean,
+    volume: boolean
+}
+
+interface GlobalOptions {
     mode: string,
-    server_address: string,
+    target: string,
     duration: string,
     transport: string,
-    frequency: string
+    interval: string,
+    counter: number
+}
+
+interface LinkMetrics {
+    bandwith: Bandwith,
+    jitter: Jitter,
+    packet_loss: Packet_loss,
+    latency: Latency
+}
+
+interface IperfMetrics {
+    mode: string,
+    target: string,
+    duration: string,
+    transport: string,
+    interval: string
+}
+
+interface Bandwith extends IperfMetrics {}
+interface Jitter extends IperfMetrics {}
+interface Packet_loss extends IperfMetrics {}
+interface Latency {
+    target: string,
+    counter: number,
+    interval: string
+}
+
+interface AlertConditions {
+    cpu_usage: number,
+    ram_usage: number,
+    interface_stats: number,
+    packet_loss: number,
+    jitter: string
 }
 
 interface Device {
-    device_id: string,
-    device_metrics: {
-        cpu_usage: boolean,
-        ram_usage: boolean,
-        interface_stats: string[]
-    }
-    link_metrics: {
-        bandwidth: {
-            iperf: Iperf
-        },
-        jitter: {
-            iperf: Iperf
-        },
-        packet_loss: {
-            iperf: Iperf
-        },
-        latency: {
-            ping: {
-                destination: string,
-                packet_count: number,
-                frequency: string
-            }
-        },
-        alertflow_conditions: {
-            cpu_usage: {
-                threshold: string
-            },
-            ram_usage: {
-                threshold: string
-            },
-            interface_stats: {
-                threshold_pps: number
-            },
-            packet_loss: {
-                threshold_percentage: string
-            },
-            jitter: {
-                threshold_ms: number
-            }
-        }
-    }
+    ip: string,
+    tasks: String[]
 }
 
 interface Task {
-    task_id: string,
-    frequency: string | number,
-    devices: Device[]
+    id: string,
+    frequency: string,
+    device_metrics: DeviceMetrics,
+    global_options: GlobalOptions,
+    link_metrics: LinkMetrics,
+    alert_conditions: AlertConditions
 }
 
 interface Config {
-    tasks: Task[]
+    tasks: Task[],
+    devices: Device[]
 }
 
-export type { Config, Task, Device, Iperf };
+export type { Config, Task, Device };
