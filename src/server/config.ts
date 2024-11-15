@@ -168,6 +168,11 @@ function validateDevice(device: Device): boolean {
 function validateConfig(config: Config): Validation {
     const logger = getOrCreateGlobalLogger();
 
+    if (Object.entries(config).length == 0) {
+        logger.error("Error on empty config.");
+        return INVALID;
+    }
+
     // Validate tasks
     for (const [taskId, task] of Object.entries(config.tasks)) {
         if (!taskId || !validateTask(task))  {
