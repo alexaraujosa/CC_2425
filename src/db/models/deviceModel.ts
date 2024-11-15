@@ -1,7 +1,7 @@
 import mongoose, { Schema, Model } from 'mongoose';
 import { IDevice } from '../interfaces/IDevice.js';
 
-// Esquema do Mongoose para o dispositivo
+// Device schema - Defines mongoDB Schema
 const DeviceSchema = new Schema<IDevice>({
     id: { type: Number, required: true, unique: true},
     ip: { type: String, required: true, unique: true },
@@ -14,6 +14,6 @@ const DeviceSchema = new Schema<IDevice>({
     connectAt: { type: Date, default: Date.now },
 });
 
-// Modelo do Mongoose
+// Mongoose model for the Device schema.
 const deviceModel: Model<IDevice> = mongoose.model<IDevice>('Device', DeviceSchema);
 export default deviceModel;

@@ -25,7 +25,7 @@ interface IMetrics extends Document {
  */
 function createMetrics(
     taskID: number,
-    deviceID: Buffer,
+    deviceSessionID: Buffer,
     metricas: string[]
 ) {
     const metricsMap: { [metricName: string]: { metric: { value: number, timestamp: Date, alert: boolean }[] } } = {};
@@ -38,11 +38,11 @@ function createMetrics(
 
     return {
         taskID: taskID,
-        deviceID: deviceID,
+        deviceSessionID: deviceSessionID,
         metrics: metricsMap,
 
         toString() {
-            let result = `TaskID: ${this.taskID}, DeviceID: ${this.deviceID}\n`;
+            let result = `TaskID: ${this.taskID}, DeviceID: ${this.deviceSessionID}\n`;
 
             for (const [metricName, data] of Object.entries(this.metrics)) {
                 result += `\nMétrica: ${metricName}\n`;

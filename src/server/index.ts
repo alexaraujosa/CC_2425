@@ -35,7 +35,7 @@ async function testDeviceOperations(db: DatabaseDAO) {
         Buffer.from("session789"),
         new Date()
     );
-    const deviceId = await db.createDevice(newDevice);
+    const deviceId = await db.storeDevice(newDevice);
     console.log("Device created with ID:", deviceId);
 
     // Retrieve device by IP
@@ -64,7 +64,7 @@ async function testTaskOperations(db: DatabaseDAO) {
         { }, // Assuming ILinkMetrics config for link metrics
         { }              // Assuming IAlertConditions config for alert conditions
     );
-    const taskId = await db.createTask(newTask);
+    const taskId = await db.storeTask(newTask);
     console.log("Task created with ID:", taskId);
 
     // Retrieve task by ID
@@ -91,18 +91,12 @@ async function testMetricsOperations(db: DatabaseDAO) {
         Buffer.from("deviceSession123"),
         ["cpu", "memory"]
     );
-    const metricsEntry = await db.createMetrics(newMetrics);
+    const metricsEntry = await db.storeMetrics(newMetrics);
     console.log("Metrics entry created:", metricsEntry.toString());
 
     // Retrieve metrics by taskID and deviceSessionID
     const metrics = await db.getMetrics(1, Buffer.from("deviceSession123"));
     console.log("Retrieved Metrics:", metrics?.toString());
-
-    // Update metrics
-    const updatedMetrics = await db.updateMetrics(1, Buffer.from("deviceSession123"), {
-        metrics: { "cpu": { metric: [{ value: 60, timestamp: new Date(), alert: false }] } }
-    });
-    console.log("Updated Metrics:", updatedMetrics?.toString());
 
     // Remove metrics entry
     const removedMetrics = await db.removeMetrics(1, Buffer.from("deviceSession123"));
@@ -125,8 +119,9 @@ async function testMetricsOperations(db: DatabaseDAO) {
 export async function serverInit(param1: string, param2: TestType) {
     const logger = getOrCreateGlobalLogger({printCallerFile: true, debug: true});
     logger.info("Hello world from SERVER.");
-
+    
     const db = new DatabaseDAO();
+    await db.dropDatabase();
 
     try {
         console.log("=== Testing Device Operations ===");
