@@ -1,6 +1,9 @@
 import { Document } from 'mongoose';
 
-// Interface da tabela de métricas
+/**
+ * Interface representing a Metrics document in the database.
+ * Extends the Mongoose Document interface for MongoDB integration.
+ */
 interface IMetrics extends Document {
     taskID: number;
     deviceSessionID: Buffer;
@@ -11,7 +14,15 @@ interface IMetrics extends Document {
     };
 }
 
-// Função que cria um objeto Metrics com a nova estrutura
+/**
+ * Creates a new metrics object with a specified task ID, device session ID, and list of metric names.
+ * 
+ * @param {number} taskID - The ID of the task associated with these metrics.
+ * @param {Buffer} deviceID - The session ID of the device associated with these metrics.
+ * @param {string[]} metricas - An array of metric names to initialize in the metrics map.
+ * 
+ * @returns {Partial<IMetrics>} A new metrics object with the specified properties and an empty array for each metric.
+ */
 function createMetrics(
     taskID: number,
     deviceID: Buffer,
@@ -48,7 +59,14 @@ function createMetrics(
     };
 }
 
-// Função para adicionar métricas à estrutura `metricTable` de acordo com a nova interface
+/**
+ * Adds new metric entries to an existing metric table.
+ * 
+ * @param {Partial<IMetrics>} metricTable - The metrics table to which new metric data will be added.
+ * @param {Object} metrics - An object containing metric names as keys and their corresponding values, timestamps, and alerts.
+ * 
+ * @throws {Error} If `metricTable` is missing the `metrics` property or if a metric name does not exist in the table.
+ */
 function addMetrics(
     metricTable: Partial<IMetrics>, 
     metrics: { [metricName: string]: { valor: number, timestamp: Date, alert: boolean } }
@@ -56,12 +74,10 @@ function addMetrics(
     for (const [metricName, { valor, timestamp, alert }] of Object.entries(metrics)) {
         if (!metricTable.metrics) {
             throw new Error("This metric table does not have a table for metrics... WEIRD!");
-            //metricTable.metrics = {};
         }
 
         if (!metricTable.metrics[metricName]) {
             throw new Error("This metric table does not have one of the metrics you are adding!");
-            //metricTable.metrics[metricName] = { metric: [] };
         }
 
         metricTable.metrics[metricName].metric.push({
