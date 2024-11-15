@@ -1,7 +1,7 @@
 import { DatabaseDAO } from "./databaseDAO.js";
-import { createDevice } from "./interfaces/IDevice.js";
-import { createMetrics } from "./interfaces/IMetrics.js";
-import { createTask } from "./interfaces/ITask.js";
+import { createDevice, deviceToString } from "./interfaces/IDevice.js";
+import { createMetrics, metricsToString } from "./interfaces/IMetrics.js";
+import { createOptions, createTask, IPERF_MODE, taskToString } from "./interfaces/ITask.js";
 
 async function testDeviceOperations(db: DatabaseDAO) {
     const newDevice = createDevice(
@@ -16,20 +16,20 @@ async function testDeviceOperations(db: DatabaseDAO) {
     console.log("Device created with ID:", deviceId);
 
     const deviceByIP = await db.getDeviceByIP("192.168.1.1");
-    console.log("Retrieved Device by IP:", deviceByIP);
+    if(deviceByIP)console.log("Retrieved Device by IP:", deviceToString(deviceByIP));
 
     const updatedDevice = await db.updateDevice("192.168.1.1", { port: 9090 });
-    console.log("Updated Device:", updatedDevice);
+    if(updatedDevice)console.log("Updated Device:", deviceToString(updatedDevice));
 
     const removedDevice = await db.removeDevice(deviceId);
-    console.log("Removed Device:", removedDevice);
+    if(removedDevice)console.log("Removed Device:", deviceToString(removedDevice));
 }
 
 async function testTaskOperations(db: DatabaseDAO) {
     const newTask = createTask(
         60,
         ["cpu", "memory"],
-        {},
+        createOptions(IPERF_MODE.CLIENT),
         {},
         {}
     );
@@ -37,28 +37,36 @@ async function testTaskOperations(db: DatabaseDAO) {
     console.log("Task created with ID:", taskId);
 
     const taskByID = await db.getTaskByID(taskId);
-    console.log("Retrieved Task by ID:", taskByID);
+    if(taskByID)console.log("Retrieved Task by ID:", taskToString(taskByID));
 
     const updatedTask = await db.updateTask(taskId, { frequency: 120 });
-    console.log("Updated Task:", updatedTask);
+    if(updatedTask)console.log("Updated Task:", taskToString(updatedTask));
 
     const removedTask = await db.removeTask(taskId);
-    console.log("Removed Task:", removedTask);
+    if(removedTask)console.log("Removed Task:", taskToString(removedTask));
 }
 
 async function testMetricsOperations(db: DatabaseDAO) {
+    console.log("\n")
     const newMetrics = createMetrics(1, Buffer.from("deviceSession123"), ["cpu", "memory"]);
     const metricsEntry = await db.storeMetrics(newMetrics);
-    console.log("Metrics entry created:", metricsEntry.toString());
+    console.log("Metrics created!");
+    console.log(metricsToString(metricsEntry));
 
     const metrics = await db.getMetrics(1, Buffer.from("deviceSession123"));
-    console.log("Retrieved Metrics:", metrics?.toString());
-
-    const metricsWithValues1 = await db.addMetricsToExisting(1, Buffer.from("deviceSession123"), { "cpu": { valor: 70, timestamp: new Date(), alert: false }, "test": { valor: 70, timestamp: new Date(), alert: false } })
-    metricsWithValues1.toString();
+    console.log("Recived Metrics!");
+    if(metrics)console.log(metricsToString(metrics));
+    
+    await db.addMetricsToExisting(1, Buffer.from("deviceSession123"), { "cpu": { valor: 70, timestamp: new Date(), alert: false } })
+    await db.addMetricsToExisting(1, Buffer.from("deviceSession123"), { "cpu": { valor: 72, timestamp: new Date(), alert: false } })
+    await db.addMetricsToExisting(1, Buffer.from("deviceSession123"), { "cpu": { valor: 38, timestamp: new Date(), alert: false } })
+    const metricsWithValues4 = await db.addMetricsToExisting(1, Buffer.from("deviceSession123"), { "cpu": { valor: 95, timestamp: new Date(), alert: true } })
+    console.log("Updated metrics!");
+    console.log(metricsToString(metricsWithValues4));
 
     const removedMetrics = await db.removeMetrics(1, Buffer.from("deviceSession123"));
-    console.log("Removed Metrics:", removedMetrics?.toString());
+    console.log("Removed metrics!");
+    if(removedMetrics)console.log(metricsToString(removedMetrics));
 }
 
 async function dbTester() {

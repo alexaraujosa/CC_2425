@@ -164,18 +164,19 @@ function createTask(
         device_metrics: device_metrics,
         global_options: global_opt,
         link_metrics: link_metrics,
-        alert_conditions: alert_contditions,
-
-        toString() {
-            return `Task Details:
-          Frequency: ${this.frequency} minutes
-          Device Metrics: ${this.device_metrics.join(", ")}
-          ${this.global_options.toString()}
-          ${this.link_metrics.toString()}
-          ${this.alert_conditions.toString()}`;
-        }              
+        alert_conditions: alert_contditions,           
     }
 }
+
+function taskToString(task: ITask): string {
+    return `Task Details:
+    Frequency: ${task.frequency || 'EMPTY'} minutes
+    Device Metrics: ${task.device_metrics.length > 0 ? task.device_metrics.join(", ") : 'EMPTY'}
+    ${task.global_options ? task.global_options.toString() : 'EMPTY'}
+    ${task.link_metrics ? task.link_metrics.toString() : 'EMPTY'}
+    ${task.alert_conditions ? task.alert_conditions.toString() : 'EMPTY'}`;
+}
+
 
 export {
     IPERF_MODE,
@@ -187,5 +188,6 @@ export {
     IAlertConditions,
     createAlertConditions,
     ITask,
-    createTask
+    createTask,
+    taskToString
 }

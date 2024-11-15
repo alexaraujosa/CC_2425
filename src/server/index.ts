@@ -13,7 +13,7 @@ import { getOrCreateGlobalLogger } from "$common/util/logger.js";
 import { DatabaseDAO } from "../db/databaseDAO.js";
 import { createDevice } from "../db/interfaces/IDevice.js";
 import { createTask } from "../db/interfaces/ITask.js";
-import { dbTester } from "src/db/dbTester.js";
+import { dbTester } from "../db/dbTester.js";
 DatabaseDAO;createDevice;createTask;
 
 /**

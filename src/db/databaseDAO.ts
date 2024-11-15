@@ -272,30 +272,30 @@ class DatabaseDAO {
      * @returns {Promise<IMetrics>} The updated metrics entry.
      * @throws Will throw an error if the metrics entry is not found or update fails.
      */
-        public async addMetricsToExisting(
-            taskID: number,
-            deviceSessionID: Buffer,
-            newMetrics: { [metricName: string]: { valor: number, timestamp: Date, alert: boolean } }
-        ): Promise<IMetrics> {
-            try {
-                // Retrieve the existing metrics entry
-                const existingMetrics = await this.metricsModel.findOne({ taskID, deviceSessionID });
-    
-                if (!existingMetrics) {
-                    throw new Error("Metrics entry not found.");
-                }
-    
-                // Use the existing addMetrics function to update the metrics
-                addMetrics(existingMetrics, newMetrics);
-    
-                // Save the updated metrics entry
-                await existingMetrics.save();
-                return existingMetrics;
-            } catch (error) {
-                this.logger.error("Erro ao adicionar métricas:", error);
-                throw new Error("Failed to add metrics.");
+    public async addMetricsToExisting(
+        taskID: number,
+        deviceSessionID: Buffer,
+        newMetrics: { [metricName: string]: { valor: number, timestamp: Date, alert: boolean } }
+    ): Promise<IMetrics> {
+        try {
+            const existingMetrics = await this.metricsModel.findOne({ taskID, deviceSessionID });
+
+            if (!existingMetrics) {
+                throw new Error("Metrics entry not found.");
             }
+
+            // Use the existing addMetrics function to update the metrics
+            addMetrics(existingMetrics, newMetrics);
+
+            // Save the updated metrics entry
+            existingMetrics.markModified('metrics');
+            await existingMetrics.save();
+            return existingMetrics;
+        } catch (error) {
+            this.logger.error(error);
+            throw new Error("Failed to add metrics.");
         }
+    }
 
     /**
      * Removes a metrics entry by taskID and deviceSessionID.

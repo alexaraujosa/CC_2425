@@ -46,17 +46,18 @@ function createDevice(
             sessionId: sessionId,
         },
         connectAt: connectAt,
-
-        toString() {
-            return `Device Information:
-          IP: ${this.ip}
-          Port: ${this.port}
-          Connected At: ${this.connectAt.toISOString()}`;
-        }
     };
+}
+
+function deviceToString(device: IDevice){
+    return `Device Information:
+    IP: ${device.ip}
+    Port: ${device.port}
+    Connected At: ${device.connectAt.toISOString()}`;
 }
 
 export {
     IDevice,
-    createDevice
+    createDevice,
+    deviceToString
 }

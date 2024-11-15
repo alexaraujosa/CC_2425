@@ -1,4 +1,4 @@
-import { Document } from 'mongoose';
+import { Document } from "mongoose";
 
 /**
  * Interface representing a Metrics document in the database.
@@ -40,22 +40,6 @@ function createMetrics(
         taskID: taskID,
         deviceSessionID: deviceSessionID,
         metrics: metricsMap,
-
-        toString() {
-            let result = `TaskID: ${this.taskID}, DeviceID: ${this.deviceSessionID}\n`;
-
-            for (const [metricName, data] of Object.entries(this.metrics)) {
-                result += `\nMétrica: ${metricName}\n`;
-                data.metric.forEach(({ value, timestamp, alert }, index) => {
-                    result += `  Entrada ${index + 1}:\n`;
-                    result += `    Valor: ${value}\n`;
-                    result += `    Timestamp: ${timestamp}\n`;
-                    result += `    Alerta: ${alert}\n`;
-                });
-            }
-
-            return result;
-        }
     };
 }
 
@@ -71,26 +55,66 @@ function addMetrics(
     metricTable: Partial<IMetrics>, 
     metrics: { [metricName: string]: { valor: number, timestamp: Date, alert: boolean } }
 ) {
+    if (typeof metricTable.metrics !== 'object' || metricTable.metrics === null) {
+        throw new Error("This metric table does not have a valid `metrics` object.");
+    }
+
     for (const [metricName, { valor, timestamp, alert }] of Object.entries(metrics)) {
-        if (!metricTable.metrics) {
-            throw new Error("This metric table does not have a table for metrics... WEIRD!");
+        // Verifica se a métrica existe no objeto 'metrics'
+        if (!(metricName in metricTable.metrics)) {
+            console.error(`Metric '${metricName}' is missing in the metric table.`);
+            throw new Error(`Metric table does not contain the metric '${metricName}'.`);
         }
 
-        if (!metricTable.metrics[metricName]) {
-            throw new Error("This metric table does not have one of the metrics you are adding!");
+        const metricData = metricTable.metrics[metricName];
+
+        // Verifica se a propriedade 'metric' é um array
+        if (!Array.isArray(metricData.metric)) {
+            throw new Error(`Invalid metric data for '${metricName}'.`);
         }
 
-        metricTable.metrics[metricName].metric.push({
+        // Adiciona a nova entrada à lista de métricas
+        metricData.metric.push({
             value: valor,
             timestamp: timestamp,
             alert: alert
         });
     }
-    return;
 }
 
-export {
+
+function metricsToString(metricsObj: IMetrics): string {
+    const { taskID, deviceSessionID, metrics } = metricsObj;
+    let result = `Task ID: ${taskID}\nDevice Session ID: ${deviceSessionID.toString('hex')}\n`;
+
+    for (const metricName in metrics) {
+        if (metrics.hasOwnProperty(metricName)) {
+            const metricData = metrics[metricName];
+
+            if (metricData && Array.isArray(metricData.metric)) {
+                result += `\nMetric: ${metricName}\n`;
+
+                metricData.metric.forEach((metric, index) => {
+                    const alertStatus = metric.alert ? 'ALERT' : 'No Alert';
+                    result += `  Metric ${index + 1} - Value: ${metric.value}, Timestamp: ${metric.timestamp.toISOString()}, Status: ${alertStatus}\n`;
+                });
+            } else {
+                result += `\nMetric: ${metricName} has no valid data.\n`;
+            }
+        }
+    }
+
+    return result;
+}
+
+
+
+
+
+
+export {   
     IMetrics,
     createMetrics,
-    addMetrics
+    addMetrics,
+    metricsToString
 };
