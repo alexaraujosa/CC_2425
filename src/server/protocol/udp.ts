@@ -4,6 +4,8 @@ import { ConnectionTarget, ConnectionTargetLike, RemoteInfo } from "$common/prot
 import { ChallengeControl, ECDHE } from "$common/protocol/ecdhe.js";
 import { UDPConnection } from "$common/protocol/udp.js";
 import { BufferReader } from "$common/util/buffer.js";
+import { createDevice, deviceToString } from "$common/db/interfaces/IDevice.js";
+import { DatabaseDAO } from "$common/db/databaseDAO.js";
 
 /**
  * This class is meant to be used as a base for UDP Server implementations.
@@ -39,19 +41,21 @@ abstract class UDPServer extends UDPConnection {
  * const server = new UDPServer().listen(new ConnectionTarget(ADDRESS, PORT));
  */
 class TestUDPServer extends UDPServer {
-    private clients: Map<string, { ecdhe: ECDHE, challenge?: ChallengeControl }>;
+    private clients: Map<string, { ecdhe: ECDHE, salt: Buffer, challenge?: ChallengeControl }>;
+    private db: DatabaseDAO;
 
-    public constructor() {
+    public constructor(db: DatabaseDAO) {
         super();
 
         this.clients = new Map();
+        this.db = db;
     }
 
     public onError(err: Error): void {
         this.logger.error("UDP Server got an error:", err);
     }
 
-    public onMessage(msg: Buffer, rinfo: RemoteInfo): void {
+    public async onMessage(msg: Buffer, rinfo: RemoteInfo): Promise<void> {
         // this.logger.log(`UDP Server got: ${msg} from ${ConnectionTarget.toQualifiedName(rinfo)}`);
         const reader = new BufferReader(msg);
         while (!reader.eof()) {
@@ -157,7 +161,7 @@ class TestUDPServer extends UDPServer {
                             ECDHE.serializeChallenge(challenge.challenge),
                             salt
                         );
-                        this.clients.set(ConnectionTarget.toQualifiedName(rinfo), { ecdhe, challenge: challenge });
+                        this.clients.set(ConnectionTarget.toQualifiedName(rinfo), { ecdhe, salt, challenge: challenge });
                         this.send(regChallengeDg.makeNetTaskRegisterChallenge(), rinfo);
                         break;
                     }
@@ -180,6 +184,20 @@ class TestUDPServer extends UDPServer {
                         }
 
                         client?.ecdhe.regenerateKeys(client.challenge!.control);
+
+                        const device = createDevice(
+                            rinfo.address,
+                            rinfo.port,
+                            <Buffer> client?.ecdhe.secret,
+                            <Buffer> client?.salt,
+                            <Buffer> client?.ecdhe.generateSessionId(client.salt),
+                            new Date()
+                        );
+                        const deviceId = await this.db.storeDevice(device);
+                        this.logger.info("Stored device with ID: " + deviceId);
+
+                        const deviceById = await this.db.getDeviceByID(deviceId);
+                        if(deviceById) this.logger.info("Retrieved Device by ID:", deviceToString(deviceById));
 
                         const requestTaskDg = new NetTaskRequestTask(123123, 123123, 0, "e que").link(client!.ecdhe);
                         this.send(requestTaskDg.makeNetTaskRequestTask(), rinfo);

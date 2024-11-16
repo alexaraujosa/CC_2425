@@ -10,9 +10,9 @@ import isBinMode from "$common/util/isBinMode.js";
 // import { readJsonFile } from "$common/util/paths.js";
 import { initConfig } from "./config.js";
 import { getOrCreateGlobalLogger } from "$common/util/logger.js";
-import { DatabaseDAO } from "../db/databaseDAO.js";
-import { createDevice } from "../db/interfaces/IDevice.js";
-import { createAlertConditions, createLinkMetrics, createOptions, createTask, IOptions, IPERF_MODE, IPERF_TRANSPORT, taskToString } from "../db/interfaces/ITask.js";
+import { DatabaseDAO } from "$common/db/databaseDAO.js";
+import { createDevice } from "$common/db/interfaces/IDevice.js";
+import { createAlertConditions, createLinkMetrics, createOptions, createTask, IOptions, IPERF_MODE, IPERF_TRANSPORT, taskToString } from "$common/db/interfaces/ITask.js";
 // import { dbTester } from "../db/dbTester.js";
 DatabaseDAO;createDevice;createTask;
 import { TestUDPServer } from "./protocol/udp.js";
@@ -63,10 +63,10 @@ export async function serverInit(options: CLIOptions) {
             link_metrics.push("bandwith");
             options.push(
                 createOptions(
-                    (task.link_metrics.bandwith?.mode === "client") ? IPERF_MODE.CLIENT : IPERF_MODE.SERVER,
+                    task.link_metrics.bandwith.mode ? ((task.link_metrics.bandwith?.mode === "client") ? IPERF_MODE.CLIENT : IPERF_MODE.SERVER) : undefined,
                     task.link_metrics.bandwith?.target,
                     task.link_metrics.bandwith?.duration,
-                    (task.link_metrics.bandwith?.transport === "tcp") ? IPERF_TRANSPORT.TPC : IPERF_TRANSPORT.UDP,
+                    task.link_metrics.bandwith.transport ? ((task.link_metrics.bandwith?.transport === "tcp") ? IPERF_TRANSPORT.TPC : IPERF_TRANSPORT.UDP) : undefined,
                     task.link_metrics.bandwith?.interval,
                     undefined
                 )
@@ -76,10 +76,10 @@ export async function serverInit(options: CLIOptions) {
             link_metrics.push("jitter");
             options.push(
                 createOptions(
-                    (task.link_metrics.jitter?.mode === "client") ? IPERF_MODE.CLIENT : IPERF_MODE.SERVER,
+                    task.link_metrics.jitter.mode ? ((task.link_metrics.jitter?.mode === "client") ? IPERF_MODE.CLIENT : IPERF_MODE.SERVER) : undefined,
                     task.link_metrics.jitter?.target,
                     task.link_metrics.jitter?.duration,
-                    (task.link_metrics.jitter?.transport === "tcp") ? IPERF_TRANSPORT.TPC : IPERF_TRANSPORT.UDP,
+                    task.link_metrics.jitter.transport ? ((task.link_metrics.jitter?.transport === "tcp") ? IPERF_TRANSPORT.TPC : IPERF_TRANSPORT.UDP) : undefined,
                     task.link_metrics.jitter?.interval,
                     undefined
                 )
@@ -102,10 +102,10 @@ export async function serverInit(options: CLIOptions) {
             link_metrics.push("packet_loss");
             options.push(
                 createOptions(
-                    (task.link_metrics.packet_loss?.mode === "client") ? IPERF_MODE.CLIENT : IPERF_MODE.SERVER,
+                    task.link_metrics.packet_loss.mode ? ((task.link_metrics.packet_loss?.mode === "client") ? IPERF_MODE.CLIENT : IPERF_MODE.SERVER) : undefined,
                     task.link_metrics.packet_loss?.target,
                     task.link_metrics.packet_loss?.duration,
-                    (task.link_metrics.packet_loss?.transport === "tcp") ? IPERF_TRANSPORT.TPC : IPERF_TRANSPORT.UDP,
+                    task.link_metrics.packet_loss.transport ? ((task.link_metrics.packet_loss?.transport === "tcp") ? IPERF_TRANSPORT.TPC : IPERF_TRANSPORT.UDP) : undefined,
                     task.link_metrics.packet_loss?.interval,
                     undefined
                 )
@@ -153,7 +153,7 @@ export async function serverInit(options: CLIOptions) {
     const tcpServer = new TCPServer();
     tcpServer.listen(tcpCT);
 
-    const udpServer = new TestUDPServer();
+    const udpServer = new TestUDPServer(db);
     udpServer.listen(port + 1);
 }
 
