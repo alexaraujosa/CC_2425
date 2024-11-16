@@ -75,6 +75,10 @@
     "typedocOptions": {
         "entryPoints": ["src/agent/index.ts", "src/server/index.ts", "src/common/index.ts"],
         "out": "docs/api",
-		"plugin": ["typedoc-plugin-not-exported"]
+		"plugin": [
+			"typedoc-plugin-not-exported", 
+			// "typedoc-plugin-missing-exports"
+		],
+		// "placeInternalsInOwningModule": true
     }
  }

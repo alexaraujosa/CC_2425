@@ -1,9 +1,9 @@
 /**
- * @module Logger utility module.
+ * @module Logger
  * @description Provides a utility for logging messages to the console.
  * @version 1.0.0
  * 
- * Copyright (c) 2024 DarkenLM https://github.com/DarkenLM
+ * @copyright Copyright (c) 2024 DarkenLM https://github.com/DarkenLM
  */
 
 import chalk from "chalk";
@@ -110,7 +110,7 @@ class _Logger<L extends Levels> {
             const color = levels[level].color;
             if (typeof color === "string") {
                 if (color === "none") this.levels[level].color = logColorNone;
-                else if (color[0] === '#') this.levels[level].color = chalk.hex(color);
+                else if (color[0] === "#") this.levels[level].color = chalk.hex(color);
                 else if (color.startsWith("rgb")) {
                     const [r, g, b] = color.match(/\d+/g)!.map(Number);
                     this.levels[level].color = chalk.rgb(r, g, b);
@@ -158,6 +158,7 @@ class _Logger<L extends Levels> {
 
         const nArgs = args.map(arg => typeof arg === "string" ? this._colorize(level, arg) : util.inspect(arg, false, 5, true));
 
+        // eslint-disable-next-line no-console
         console.log(this._colorize(level, outMsg), ...nArgs);
     }
 
