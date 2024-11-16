@@ -59,7 +59,7 @@ class TestUDPServer extends UDPServer {
                 reader.readUInt8();
 
             if (reader.eof())  break;
-            // //#region ============== NETFLOW ==============
+            //#region ============== NETFLOW ==============
             // if (reader.peek() === 67 && verifySignature(reader)) {
             //     const type = reader.readUInt32();//msg.readUInt32BE(4);
             //     switch (type) {
@@ -117,7 +117,7 @@ class TestUDPServer extends UDPServer {
             //         }
             //     }
             // }
-            // //#endregion ============== NETFLOW ==============
+            //#endregion ============== NETFLOW ==============
             if (reader.peek() === 78 && NetTask.verifySignature(reader)) {
                 const header = NetTask.readNetTaskDatagram(reader);
                 // this.logger.info(nt);
@@ -126,12 +126,24 @@ class TestUDPServer extends UDPServer {
 
                     /**
                      * Second phase of the Registration Process, where the Server, after receiving the Agent Public Key,
+                     * verifies if the device exists in the config. If it does not, the connection is rejected. Otherwise, it
                      * creates an ecdhe link for the Agent and a challenge using 12 random bytes. Afterwards, a Register
                      * Challenge Datagram is created, containing the Server Public Key, the challenge and the ecdhe link.
                      * Before sending that datagram, the server saves the agent ecdhe, that will be used on the fourth phase.
                      */
                     case NetTaskDatagramType.REQUEST_REGISTER: {
                         const registerDg = NetTaskRegister.readNetTaskRegisterDatagram(reader, header);
+
+                        let exists = false;
+                        for (const device of Object.values(config.devices)) {
+                            if (device.ip === rinfo.address)
+                                exists = true;
+                        }
+                        if (!exists) {
+                            const rejectedDg = new NetTask(123123, 123123, NetTaskDatagramType.CONNECTION_REJECTED, 0);
+                            this.send(rejectedDg.makeNetTaskDatagram(), rinfo);
+                            break;
+                        }
 
                         const ecdhe = new ECDHE("secp128r1");
                         const salt = ecdhe.link(registerDg.publicKey);
