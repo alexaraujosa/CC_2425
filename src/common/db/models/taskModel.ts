@@ -23,7 +23,8 @@ const TaskSchema = new Schema<ITask>({
         ram_usage: { type: Number, required: false },
         interface_stats: { type: Number, required: false },
         packet_loss: { type: Number, required: false },
-        jitter: { type: Number, required: false }
+        jitter: { type: Number, required: false },
+        latency: {type: Number, required: false}
     }
 });
 

@@ -48,11 +48,11 @@ function createOptions(mode?: IPERF_MODE, target?: string, duration?: number, tr
         transport: transport,
         interval: interval,
         counter: counter,
-
-        toString(){
-            return `Options: mode:${mode};target:${target};duration:${duration};transport:${transport};interval:${interval};counter:${counter}`;
-        }
     }
+}
+
+function optionsToString(options: IOptions){
+    return `Options: mode:${options.mode ? options.mode : `EMPTY`};target:${options.target ? options.target : `EMPTY`};duration:${options.duration ? options.duration : 'EMPTY'};transport:${options.transport ? options.transport : `Empty`};interval:${options.interval ? options.interval : `EMPTY`};counter:${options.counter ? options.counter : `EMPTY`}`;
 }
 
 /**
@@ -84,15 +84,19 @@ function createLinkMetrics(metricsNames: string[], options: IOptions[]): ILinkMe
 
     return{
         link_metrics
-
-        // toString() {
-        //     let result = "Metrics Options:\n";
-        //     for (const [metricName, option] of Object.entries(this.link_metrics)) {
-        //         result += `  ${metricName}: mode:${option.mode}; target:${option.target}; duration:${option.duration}; transport:${option.transport}; interval:${option.interval}; counter:${option.counter}\n`;
-        //     }
-        //     return result;
-        // }
     }
+}
+
+function linkMetricsToString(linkMetrics: ILinkMetrics) {
+    let result = "";
+    for (const [metricName, option] of Object.entries(linkMetrics.link_metrics)) {
+        if (!option) {
+            result += `  \n\t${metricName}: \n\t\tEMPTY`;
+        } else {
+            result += `  \n\t${metricName}: \n\t\t${optionsToString(option)}`;
+        }
+    }
+    return result;
 }
 
 /**
@@ -104,6 +108,7 @@ interface IAlertConditions {
         interface_stats?: number,
         packet_loss?: number,
         jitter?: number,
+        latency?: number
 }
 
 /**
@@ -114,20 +119,22 @@ interface IAlertConditions {
  * @param {number} interface_stats - Network interface statistics.
  * @param {number} packet_loss - Packet loss percentage for triggering an alert.
  * @param {number} jitter - Jitter threshold for triggering an alert.
+ * @param {number} latency - Latency threshold for triggering an alert.
  * @returns {IAlertConditions} - An object containing the configured alert conditions.
  */
-function createAlertConditions(cpu_usage?: number, ram_usage?: number, interface_stats?: number, packet_loss?: number, jitter?: number){
+function createAlertConditions(cpu_usage?: number, ram_usage?: number, interface_stats?: number, packet_loss?: number, jitter?: number, latency?: number){
     return{
         cpu_usage: cpu_usage,
         ram_usage: ram_usage,
         interface_stats: interface_stats,
         packet_loss: packet_loss,
         jitter: jitter,
-
-        toString(){
-            return `AlertConditions: cpu_usage:${cpu_usage};ram_usage:${ram_usage};interface_stats:${interface_stats};packet_loss:${packet_loss};jitter:${jitter}`;
-        }
+        latency: latency,
     }
+}
+
+function alertConditionsToString(alertConditions: IAlertConditions){
+    return `AlertConditions: cpu_usage:${alertConditions.cpu_usage ? alertConditions.cpu_usage : `EMPTY`};ram_usage:${alertConditions.ram_usage ? alertConditions.ram_usage : `EMPTY`};interface_stats:${alertConditions.interface_stats ? alertConditions.interface_stats : `EMPTY`};packet_loss:${alertConditions.packet_loss ? alertConditions.packet_loss : `EMPTY`};jitter:${alertConditions.jitter ? alertConditions.jitter : `EMPTY`};latency:${alertConditions.latency ? alertConditions.latency : `EMPTY`}`; 
 }
 
 /**
@@ -172,9 +179,9 @@ function taskToString(task: ITask): string {
     return `Task Details:
     Frequency: ${task.frequency || 'EMPTY'} ms
     Device Metrics: ${task.device_metrics.length > 0 ? task.device_metrics.join(", ") : 'EMPTY'}
-    Global Options: ${task.global_options ? task.global_options.toString() : 'EMPTY'}
-    Link Metrics: ${task.link_metrics ? task.link_metrics.toString() : 'EMPTY'}
-    Alert Conditions: ${task.alert_conditions ? task.alert_conditions.toString() : 'EMPTY'}`;
+    Global Options: ${task.global_options ? optionsToString(task.global_options) : 'EMPTY'}
+    Link Metrics: ${task.link_metrics ? linkMetricsToString(task.link_metrics) : 'EMPTY'}
+    Alert Conditions: ${task.alert_conditions ? alertConditionsToString(task.alert_conditions) : 'EMPTY'}`;
 }
 
 

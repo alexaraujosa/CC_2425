@@ -1,7 +1,7 @@
 import { DatabaseDAO } from "./databaseDAO.js";
 import { createDevice, deviceToString } from "./interfaces/IDevice.js";
 import { createMetrics, metricsToString } from "./interfaces/IMetrics.js";
-import { createOptions, createTask, IPERF_MODE, taskToString } from "./interfaces/ITask.js";
+import { createAlertConditions, createLinkMetrics, createOptions, createTask, IPERF_MODE, taskToString } from "./interfaces/ITask.js";
 
 async function testDeviceOperations(db: DatabaseDAO) {
     const newDevice = createDevice(
@@ -30,9 +30,11 @@ async function testTaskOperations(db: DatabaseDAO) {
         60,
         ["cpu", "memory"],
         createOptions(IPERF_MODE.CLIENT),
-        {},
-        {}
+        createLinkMetrics(["bandwith", "test"], [createOptions(), createOptions(undefined, undefined, undefined, undefined, undefined, 42)]),
+        createAlertConditions(undefined,undefined,undefined,undefined,undefined,15)
     );
+    console.log("Retrieved Task by ID:", newTask);
+
     const taskId = await db.storeTask(newTask);
     console.log("Task created with ID:", taskId);
 
@@ -42,8 +44,8 @@ async function testTaskOperations(db: DatabaseDAO) {
     const updatedTask = await db.updateTask(taskId, { frequency: 120 });
     if(updatedTask)console.log("Updated Task:", taskToString(updatedTask));
 
-    const removedTask = await db.removeTask(taskId);
-    if(removedTask)console.log("Removed Task:", taskToString(removedTask));
+    //const removedTask = await db.removeTask(taskId);
+    //if(removedTask)console.log("Removed Task:", taskToString(removedTask));
 }
 
 async function testMetricsOperations(db: DatabaseDAO) {
