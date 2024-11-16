@@ -14,10 +14,7 @@ const TaskSchema = new Schema<ITask>({
         interval: { type: Number, required: false },
         counter: { type: Number, required: false }
     },
-    link_metrics: {
-        type: Object, // Substituímos o 'Map' por 'Object'
-        required: false
-    },
+    link_metrics: { type: Map, of: Schema.Types.Mixed, required: false },
     alert_conditions: {
         cpu_usage: { type: Number, required: false },
         ram_usage: { type: Number, required: false },
@@ -31,3 +28,4 @@ const TaskSchema = new Schema<ITask>({
 // Mongoose model for the Task schema.
 const taskModel: Model<ITask> = mongoose.model<ITask>('Task', TaskSchema);
 export default taskModel;
+

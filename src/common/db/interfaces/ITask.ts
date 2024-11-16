@@ -41,14 +41,16 @@ interface IOptions {
  * @returns {IOptions} - An object containing the configured options.
  */
 function createOptions(mode?: IPERF_MODE, target?: string, duration?: number, transport?: IPERF_TRANSPORT, interval?: number, counter?: number){
-    return{
-        mode: mode,
-        target: target,
-        duration: duration,
-        transport: transport,
-        interval: interval,
-        counter: counter,
-    }
+    const opt: IOptions = {}
+    
+    opt.mode = mode;
+    opt.target = target;
+    opt.duration = duration;
+    opt.transport = transport;
+    opt.interval = interval;
+    opt.counter = counter;
+
+    return opt;
 }
 
 function optionsToString(options: IOptions){
@@ -71,29 +73,38 @@ interface ILinkMetrics {
  * @throws {Error} - Throws an error if the number of metrics and options is not the same.
  */
 function createLinkMetrics(metricsNames: string[], options: IOptions[]): ILinkMetrics {
-    const link_metrics: { [metricName: string]: IOptions } = {}; 
+    const linkMetrics: ILinkMetrics = {}; 
 
     if (metricsNames.length !== options.length) {
         throw new Error("The number of metrics and options must be the same.");
     }
 
     metricsNames.forEach((metricName, index) => {
-        link_metrics[metricName] = options[index];
+        linkMetrics[metricName] = options[index];
     });
 
-
-    return{
-        link_metrics
-    }
+    return linkMetrics;
 }
+
 
 function linkMetricsToString(linkMetrics: ILinkMetrics) {
     let result = "";
-    for (const [metricName, option] of Object.entries(linkMetrics.link_metrics)) {
-        if (!option) {
-            result += `  \n\t${metricName}: \n\t\tEMPTY`;
-        } else {
-            result += `  \n\t${metricName}: \n\t\t${optionsToString(option)}`;
+    if(linkMetrics instanceof Map) {
+        linkMetrics.forEach((option, metricName) => {
+            if (!option) {
+                result += `  \n\t${metricName}: \n\t\tEMPTY`;
+            } else {
+                result += `  \n\t${metricName}: \n\t\t${optionsToString(option)}`;
+            }
+        });
+    }
+    else {
+        for (const [metricName, option] of Object.entries(linkMetrics)) {
+            if (!option) {
+                result += `  \n\t${metricName}: \n\t\tEMPTY`;
+            } else {
+                result += `  \n\t${metricName}: \n\t\t${optionsToString(option)}`;
+            }
         }
     }
     return result;

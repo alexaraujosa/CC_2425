@@ -12,8 +12,20 @@ async function testDeviceOperations(db: DatabaseDAO) {
         Buffer.from("session789"),
         new Date()
     );
+
+    const newDevice2 = createDevice(
+        "ipdiferente",
+        8080,
+        Buffer.from("secret123"),
+        Buffer.from("salt456"),
+        Buffer.from("askndansd"),
+        new Date()
+    );
+
     const deviceId = await db.storeDevice(newDevice);
+    const deviceId2 = await db.storeDevice(newDevice2);
     console.log("Device created with ID:", deviceId);
+    console.log("Device created with ID:", deviceId2);
 
     const deviceByIP = await db.getDeviceByIP("192.168.1.1");
     if(deviceByIP)console.log("Retrieved Device by IP:", deviceToString(deviceByIP));
@@ -21,8 +33,8 @@ async function testDeviceOperations(db: DatabaseDAO) {
     const updatedDevice = await db.updateDevice("192.168.1.1", { port: 9090 });
     if(updatedDevice)console.log("Updated Device:", deviceToString(updatedDevice));
 
-    const removedDevice = await db.removeDevice(deviceId);
-    if(removedDevice)console.log("Removed Device:", deviceToString(removedDevice));
+    //const removedDevice = await db.removeDevice(deviceId);
+    //if(removedDevice)console.log("Removed Device:", deviceToString(removedDevice));
 }
 
 async function testTaskOperations(db: DatabaseDAO) {
@@ -30,7 +42,7 @@ async function testTaskOperations(db: DatabaseDAO) {
         60,
         ["cpu", "memory"],
         createOptions(IPERF_MODE.CLIENT),
-        createLinkMetrics(["bandwith", "test"], [createOptions(), createOptions(undefined, undefined, undefined, undefined, undefined, 42)]),
+        createLinkMetrics(["asdasd", "bandwith", "test"], [createOptions(IPERF_MODE.SERVER), createOptions(undefined), createOptions(undefined, undefined, undefined, undefined, undefined, 42)]),
         createAlertConditions(undefined,undefined,undefined,undefined,undefined,15)
     );
     console.log("Retrieved Task by ID:", newTask);
