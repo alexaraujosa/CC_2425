@@ -70,7 +70,7 @@ interface ILinkMetrics {
  * @returns {ILinkMetrics} - An object containing metrics and their associated options.
  * @throws {Error} - Throws an error if the number of metrics and options is not the same.
  */
-function createLinkMetrics(metricsNames: string[], options: IOptions[]) {
+function createLinkMetrics(metricsNames: string[], options: IOptions[]): ILinkMetrics {
     const link_metrics: { [metricName: string]: IOptions } = {}; 
 
     if (metricsNames.length !== options.length) {
@@ -83,15 +83,15 @@ function createLinkMetrics(metricsNames: string[], options: IOptions[]) {
 
 
     return{
-        link_metrics,
+        link_metrics
 
-        toString() {
-            let result = "Metrics Options:\n";
-            for (const [metricName, option] of Object.entries(this.link_metrics)) {
-                result += `  ${metricName}: mode:${option.mode}; target:${option.target}; duration:${option.duration}; transport:${option.transport}; interval:${option.interval}; counter:${option.counter}\n`;
-            }
-            return result;
-        }
+        // toString() {
+        //     let result = "Metrics Options:\n";
+        //     for (const [metricName, option] of Object.entries(this.link_metrics)) {
+        //         result += `  ${metricName}: mode:${option.mode}; target:${option.target}; duration:${option.duration}; transport:${option.transport}; interval:${option.interval}; counter:${option.counter}\n`;
+        //     }
+        //     return result;
+        // }
     }
 }
 
@@ -170,11 +170,11 @@ function createTask(
 
 function taskToString(task: ITask): string {
     return `Task Details:
-    Frequency: ${task.frequency || 'EMPTY'} minutes
+    Frequency: ${task.frequency || 'EMPTY'} ms
     Device Metrics: ${task.device_metrics.length > 0 ? task.device_metrics.join(", ") : 'EMPTY'}
-    ${task.global_options ? task.global_options.toString() : 'EMPTY'}
-    ${task.link_metrics ? task.link_metrics.toString() : 'EMPTY'}
-    ${task.alert_conditions ? task.alert_conditions.toString() : 'EMPTY'}`;
+    Global Options: ${task.global_options ? task.global_options.toString() : 'EMPTY'}
+    Link Metrics: ${task.link_metrics ? task.link_metrics.toString() : 'EMPTY'}
+    Alert Conditions: ${task.alert_conditions ? task.alert_conditions.toString() : 'EMPTY'}`;
 }
 
 

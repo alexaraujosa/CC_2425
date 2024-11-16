@@ -12,8 +12,8 @@ import { initConfig } from "./config.js";
 import { getOrCreateGlobalLogger } from "$common/util/logger.js";
 import { DatabaseDAO } from "../db/databaseDAO.js";
 import { createDevice } from "../db/interfaces/IDevice.js";
-import { createTask } from "../db/interfaces/ITask.js";
-import { dbTester } from "../db/dbTester.js";
+import { createAlertConditions, createLinkMetrics, createOptions, createTask, IOptions, IPERF_MODE, IPERF_TRANSPORT, taskToString } from "../db/interfaces/ITask.js";
+// import { dbTester } from "../db/dbTester.js";
 DatabaseDAO;createDevice;createTask;
 import { TestUDPServer } from "./protocol/udp.js";
 import { TCPServer } from "./protocol/tcp.js";
@@ -45,23 +45,107 @@ export async function serverInit(options: CLIOptions) {
     const port = options.port;
 
     // Config loader
-    // const json = await readJsonFile<Config>(path.join(process.cwd(), "/docs/assets/config.json"));
     const json = await initConfig("docs/assets/config.json");
-
-    // json.tasks.forEach(task => {    // TODO: Colocar como assincrono, sendo melhor usar um ciclo for
-    //     task.devices.forEach(device => {
-    //         device.device_id;
-
-    //         // TODO: Através do device_id, obtenho  na base de dados o seu ip.
-    //         // TODO: Crio o datagrama NetTask.
-    //         // TODO: Invoco o metodo udpServer.send(nt, ip+port). O ip+port vou buscar a base de dados atraves do device_id
-    //     })
-    // });
-
     logger.info(json);
 
-    
-    await dbTester();
+    const db = new DatabaseDAO();
+
+    for (const task of Object.values(config.tasks)) {
+        let device_metrics: string[] = [];
+        if (task.device_metrics.cpu_usage)  device_metrics.push("cpu");
+        if (task.device_metrics.interface_stats)  device_metrics.push("interface_stats");
+        if (task.device_metrics.ram_usage)  device_metrics.push("memory");
+        if (task.device_metrics.volume)  device_metrics.push("volume");
+
+        let link_metrics: string[] = [];
+        let options: IOptions[] = [];
+        if (task.link_metrics.bandwith)  {
+            link_metrics.push("bandwith");
+            options.push(
+                createOptions(
+                    (task.link_metrics.bandwith?.mode === "client") ? IPERF_MODE.CLIENT : IPERF_MODE.SERVER,
+                    task.link_metrics.bandwith?.target,
+                    task.link_metrics.bandwith?.duration,
+                    (task.link_metrics.bandwith?.transport === "tcp") ? IPERF_TRANSPORT.TPC : IPERF_TRANSPORT.UDP,
+                    task.link_metrics.bandwith?.interval,
+                    undefined
+                )
+            )
+        }
+        if (task.link_metrics.jitter)  {
+            link_metrics.push("jitter");
+            options.push(
+                createOptions(
+                    (task.link_metrics.jitter?.mode === "client") ? IPERF_MODE.CLIENT : IPERF_MODE.SERVER,
+                    task.link_metrics.jitter?.target,
+                    task.link_metrics.jitter?.duration,
+                    (task.link_metrics.jitter?.transport === "tcp") ? IPERF_TRANSPORT.TPC : IPERF_TRANSPORT.UDP,
+                    task.link_metrics.jitter?.interval,
+                    undefined
+                )
+            )
+        }
+        if (task.link_metrics.latency)  {
+            link_metrics.push("latency");
+            options.push(
+                createOptions(
+                    undefined,
+                    task.link_metrics.latency?.target,
+                    undefined,
+                    undefined,
+                    task.link_metrics.latency?.interval,
+                    task.link_metrics.latency.counter
+                )
+            )
+        }
+        if (task.link_metrics.packet_loss)  {
+            link_metrics.push("packet_loss");
+            options.push(
+                createOptions(
+                    (task.link_metrics.packet_loss?.mode === "client") ? IPERF_MODE.CLIENT : IPERF_MODE.SERVER,
+                    task.link_metrics.packet_loss?.target,
+                    task.link_metrics.packet_loss?.duration,
+                    (task.link_metrics.packet_loss?.transport === "tcp") ? IPERF_TRANSPORT.TPC : IPERF_TRANSPORT.UDP,
+                    task.link_metrics.packet_loss?.interval,
+                    undefined
+                )
+            )
+        }
+
+
+        const newTask = createTask(
+            task.frequency,
+            device_metrics,
+            createOptions(
+                task.global_options.mode ? ((task.global_options.mode === "client") ? IPERF_MODE.CLIENT : IPERF_MODE.SERVER) : undefined,
+                task.global_options.target,
+                task.global_options.duration,
+                task.global_options.transport ? ((task.global_options.transport === "tcp") ? IPERF_TRANSPORT.TPC : IPERF_TRANSPORT.UDP) : undefined,
+                task.global_options.interval,
+                task.global_options.counter
+            ),
+            createLinkMetrics(
+                link_metrics,
+                options
+            ),
+            createAlertConditions(
+                task.alert_conditions.cpu_usage,
+                task.alert_conditions.ram_usage,
+                task.alert_conditions.interface_stats,
+                task.alert_conditions.packet_loss,
+                task.alert_conditions.jitter
+            )
+        );
+
+        const taskId = await db.storeTask(newTask);
+        logger.info("New task created with id: " + taskId);
+
+        const taskByID = await db.getTaskByID(taskId);
+        if(taskByID)    logger.info("Retrieved Task by ID:", taskToString(taskByID));
+    }
+
+
+    // await dbTester();
 
     // Server setup
     const tcpCT = new ConnectionTarget(host, port);
