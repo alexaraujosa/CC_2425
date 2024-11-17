@@ -11,6 +11,7 @@ import { ECDHE } from "$common/protocol/ecdhe.js";
 import { UDPConnection } from "$common/protocol/udp.js";
 import { BufferReader } from "$common/util/buffer.js";
 import { RemoteInfo } from "dgram";
+import { executeIPerfServer, executePing } from "./executor.js";
 
 /**
  * A UDP Client with integrated events and asynchronous flow control.
@@ -122,6 +123,12 @@ class UDPClient extends UDPConnection {
                     case NetTaskDatagramType.REQUEST_TASK: {
                         const nttttt = NetTaskRequestTask.deserialize(reader, this.ecdhe, nt);
                         this.logger.log(nttttt);
+
+                        this.logger.info("\n\nStaring to execute tasks: \n\n");
+                        
+                        executePing("www.google.pt", 3, 1);
+                        executeIPerfServer(30, "tcp", 5);
+
                         break;
                     }
                     default:{
