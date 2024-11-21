@@ -40,7 +40,7 @@ interface IOptions {
  * @param {number} counter - Sample counter.
  * @returns {IOptions} - An object containing the configured options.
  */
-function createOptions(mode?: IPERF_MODE, target?: string, duration?: number, transport?: IPERF_TRANSPORT, interval?: number, counter?: number){
+function createOptions(mode?: IPERF_MODE, target?: string, duration?: number, transport?: IPERF_TRANSPORT, interval?: number, counter?: number): IOptions{
     const opt: IOptions = {}
     
     opt.mode = mode;
@@ -53,7 +53,13 @@ function createOptions(mode?: IPERF_MODE, target?: string, duration?: number, tr
     return opt;
 }
 
-function optionsToString(options: IOptions){
+/**
+ * Returns a string with the options settings.
+ * 
+ * @param {IOptions} options - The options settings you want to print the information from. 
+ * @returns {string} The idented string with the information from the otpions.
+ */
+function optionsToString(options: IOptions): string{
     return `Options: mode:${options.mode ? options.mode : `EMPTY`};target:${options.target ? options.target : `EMPTY`};duration:${options.duration ? options.duration : 'EMPTY'};transport:${options.transport ? options.transport : `Empty`};interval:${options.interval ? options.interval : `EMPTY`};counter:${options.counter ? options.counter : `EMPTY`}`;
 }
 
@@ -86,8 +92,13 @@ function createLinkMetrics(metricsNames: string[], options: IOptions[]): ILinkMe
     return linkMetrics;
 }
 
-
-function linkMetricsToString(linkMetrics: ILinkMetrics) {
+/**
+ * Returns a string with linkMetrics Info.
+ * 
+ * @param {ILinkMetrics} linkMetrics - The LinkMetrics you want to print the information from. 
+ * @returns {string} The idented string with the information from the linkMetrics.
+ */
+function linkMetricsToString(linkMetrics: ILinkMetrics): string {
     let result = "";
     if(linkMetrics instanceof Map) {
         linkMetrics.forEach((option, metricName) => {
@@ -133,7 +144,7 @@ interface IAlertConditions {
  * @param {number} latency - Latency threshold for triggering an alert.
  * @returns {IAlertConditions} - An object containing the configured alert conditions.
  */
-function createAlertConditions(cpu_usage?: number, ram_usage?: number, interface_stats?: number, packet_loss?: number, jitter?: number, latency?: number){
+function createAlertConditions(cpu_usage?: number, ram_usage?: number, interface_stats?: number, packet_loss?: number, jitter?: number, latency?: number): IAlertConditions{
     return{
         cpu_usage: cpu_usage,
         ram_usage: ram_usage,
@@ -144,7 +155,13 @@ function createAlertConditions(cpu_usage?: number, ram_usage?: number, interface
     }
 }
 
-function alertConditionsToString(alertConditions: IAlertConditions){
+/**
+ * Returns a string with AlertConditions Info.
+ * 
+ * @param {IAlertConditions} alertConditions - The alertConditions you want to print the information from. 
+ * @returns {string} The idented string with the information from the alertConditions.
+ */
+function alertConditionsToString(alertConditions: IAlertConditions): string{
     return `AlertConditions: cpu_usage:${alertConditions.cpu_usage ? alertConditions.cpu_usage : `EMPTY`};ram_usage:${alertConditions.ram_usage ? alertConditions.ram_usage : `EMPTY`};interface_stats:${alertConditions.interface_stats ? alertConditions.interface_stats : `EMPTY`};packet_loss:${alertConditions.packet_loss ? alertConditions.packet_loss : `EMPTY`};jitter:${alertConditions.jitter ? alertConditions.jitter : `EMPTY`};latency:${alertConditions.latency ? alertConditions.latency : `EMPTY`}`; 
 }
 
@@ -168,24 +185,30 @@ interface ITask extends Document {
  * @param {IOptions} global_opt - Global configuration options for the task.
  * @param {ILinkMetrics} link_metrics - Associated link metrics with/without options.
  * @param {IAlertConditions} alert_conditions - Configured alert conditions for the task.
- * @returns {ITask} - An object representing the task with its configuration.
+ * @returns {Partial<ITask>} - An object representing the task with its configuration.
  */
 function createTask(
     frequency: number,
     device_metrics: string[],
     global_opt: IOptions, 
     link_metrics: ILinkMetrics,
-    alert_contditions: IAlertConditions
-){
+    alert_conditions: IAlertConditions
+): Partial<ITask>{
     return {
         frequency: frequency,
         device_metrics: device_metrics,
         global_options: global_opt,
         link_metrics: link_metrics,
-        alert_conditions: alert_contditions,           
+        alert_conditions: alert_conditions,           
     }
 }
 
+/**
+ * Returns a string with the task info.
+ * 
+ * @param {ITask} task - The task you want to print the information from. 
+ * @returns {string} The idented string with the information from the task.
+ */
 function taskToString(task: ITask): string {
     return `Task Details:
     Frequency: ${task.frequency || 'EMPTY'} ms

@@ -35,8 +35,7 @@ function createDevice(
     salt: Buffer,
     sessionId: Buffer,
     connectAt: Date
-) { 
-    //TODO: Fazer metodo tostring
+): Partial<IDevice> { 
     return {
         ip: ip,
         port: port,
@@ -49,7 +48,13 @@ function createDevice(
     };
 }
 
-function deviceToString(device: IDevice){
+/**
+ * Returns a string with the device's information.
+ * 
+ * @param {IDevice} device - The device you want to print the information from. 
+ * @returns {string} The idented string with the information from the device.
+ */
+function deviceToString(device: IDevice): string{
     return `Device Information:
     IP: ${device.ip}
     Port: ${device.port}

@@ -27,7 +27,7 @@ function createMetrics(
     taskID: number,
     deviceSessionID: Buffer,
     metricas: string[]
-) {
+): Partial<IMetrics> {
     const metricsMap: { [metricName: string]: { metric: { value: number, timestamp: Date, alert: boolean }[] } } = {};
     
     metricas.forEach(metricName => {
@@ -60,7 +60,6 @@ function addMetrics(
     }
 
     for (const [metricName, { valor, timestamp, alert }] of Object.entries(metrics)) {
-        // Verifica se a métrica existe no objeto 'metrics'
         if (!(metricName in metricTable.metrics)) {
             console.error(`Metric '${metricName}' is missing in the metric table.`);
             throw new Error(`Metric table does not contain the metric '${metricName}'.`);
@@ -68,12 +67,10 @@ function addMetrics(
 
         const metricData = metricTable.metrics[metricName];
 
-        // Verifica se a propriedade 'metric' é um array
         if (!Array.isArray(metricData.metric)) {
             throw new Error(`Invalid metric data for '${metricName}'.`);
         }
 
-        // Adiciona a nova entrada à lista de métricas
         metricData.metric.push({
             value: valor,
             timestamp: timestamp,
@@ -82,7 +79,12 @@ function addMetrics(
     }
 }
 
-
+/**
+ * Returns a string with the metrics's values.
+ * 
+ * @param {IMetrics} metricsObj - The metrics table you want to print the information from. 
+ * @returns {string} The idented string with the information from the table.
+ */
 function metricsToString(metricsObj: IMetrics): string {
     const { taskID, deviceSessionID, metrics } = metricsObj;
     let result = `Task ID: ${taskID}\nDevice Session ID: ${deviceSessionID.toString('hex')}\n`;
@@ -106,11 +108,6 @@ function metricsToString(metricsObj: IMetrics): string {
 
     return result;
 }
-
-
-
-
-
 
 export {   
     IMetrics,

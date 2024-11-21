@@ -8,7 +8,7 @@
 
 import mongoose, { Model } from 'mongoose';
 import { IDevice } from './interfaces/IDevice.js';
-import { ITask, taskToString } from './interfaces/ITask.js';
+import { ITask } from './interfaces/ITask.js';
 import { getOrCreateGlobalLogger } from "$common/util/logger.js";
 import { addMetrics, IMetrics } from './interfaces/IMetrics.js';
 import deviceModel from './models/deviceModel.js';
@@ -171,8 +171,7 @@ class DatabaseDAO {
             values.id = newId
 
             const task = new this.taskModel(values);
-            taskToString(task);
-            this.logger.info("AAAAAAAAAAAAAAAAAAAAAAAAAA")
+
             await task.save();
             return newId;
         } catch (error) {
