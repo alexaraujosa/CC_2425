@@ -15,7 +15,7 @@ import { createDevice } from "$common/db/interfaces/IDevice.js";
 import { createAlertConditions, createLinkMetrics, createOptions, createTask, IOptions, IPERF_MODE, IPERF_TRANSPORT, taskToString } from "$common/db/interfaces/ITask.js";
 // import { dbTester } from "../db/dbTester.js";
 DatabaseDAO;createDevice;createTask;
-import { TestUDPServer } from "./protocol/udp.js";
+import { UDPServer } from "./protocol/udp.js";
 import { TCPServer } from "./protocol/tcp.js";
 import { ConnectionTarget } from "$common/protocol/connection.js";
 
@@ -153,7 +153,7 @@ export async function serverInit(options: CLIOptions) {
     const tcpServer = new TCPServer();
     tcpServer.listen(tcpCT);
 
-    const udpServer = new TestUDPServer(db);
+    const udpServer = new UDPServer(db);
     udpServer.listen(port + 1);
 }
 

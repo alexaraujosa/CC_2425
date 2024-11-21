@@ -36,6 +36,7 @@ enum NetTaskDatagramType {
 class NetTask {
     private version: number;
     private sequenceNumber: number;
+    private fragmented: boolean;
     private acknowledgementNumber: number;
     private type: NetTaskDatagramType;
     private payloadSize: number;
@@ -43,12 +44,14 @@ class NetTask {
     public constructor(
         sequenceNumber: number,
         acknowledgementNumber: number,
+        fragmented: boolean,
         type: NetTaskDatagramType,
         payloadSize: number
     ) {
         this.version = NET_TASK_VERSION;
         this.sequenceNumber = sequenceNumber;
         this.acknowledgementNumber = acknowledgementNumber;
+        this.fragmented = fragmented;
         this.type = type;
         this.payloadSize = payloadSize;
     }
@@ -56,6 +59,7 @@ class NetTask {
     public getVersion(): number { return this.version; }
     public getSequenceNumber(): number { return this.sequenceNumber; }
     public getAcknowledgementNumber(): number { return this.acknowledgementNumber; }
+    public getFragmentedFlag(): boolean { return this.fragmented; }
     public getType(): NetTaskDatagramType { return this.type; }
     public getPayloadSize(): number { return this.payloadSize; }
 
@@ -64,6 +68,7 @@ class NetTask {
                 "  VERSION: " + this.version + "\n" +
                 "  SEQUENCE_NUMBER: " + this.sequenceNumber + "\n" +
                 "  ACKNOWLEDGEMENT_NUMBER: " + this.acknowledgementNumber + "\n" +
+                "  IS_FRAGMENTED: " + this.fragmented + "\n" +
                 "  TYPE: " + this.type + "\n" +
                 "  PAYLOAD_SIZE: " + this.payloadSize + "\n";
     }
@@ -94,10 +99,11 @@ class NetTask {
 
         const sequenceNumber = reader.readUInt32();
         const acknowledgementNumber = reader.readUInt32();
+        const fragmentedBool = reader.readInt8();
         const type = reader.readUInt32();
         const payloadSize = reader.readUInt32();
 
-        return new NetTask(sequenceNumber, acknowledgementNumber, type, payloadSize);
+        return new NetTask(sequenceNumber, acknowledgementNumber, !!fragmentedBool, type, payloadSize);
     }
 
     /**
@@ -109,6 +115,7 @@ class NetTask {
         writer.writeUInt32(this.version);
         writer.writeUInt32(this.sequenceNumber);
         writer.writeUInt32(this.acknowledgementNumber);
+        writer.writeUInt8(+this.fragmented);
         writer.writeUInt32(this.type);
         writer.writeUInt32(this.payloadSize);
 
@@ -123,12 +130,14 @@ class NetTaskRegister extends NetTask {
     public constructor (
         sequenceNumber: number,
         acknowledgementNumber: number,
+        fragmented: boolean,
         payloadSize: number,
         publicKey: Buffer
     ) {
         super(
             sequenceNumber, 
-            acknowledgementNumber, 
+            acknowledgementNumber,
+            fragmented,
             NetTaskDatagramType.REQUEST_REGISTER, 
             payloadSize
         );
@@ -157,7 +166,8 @@ class NetTaskRegister extends NetTask {
 
         return new NetTaskRegister(
             dg.getSequenceNumber(), 
-            dg.getAcknowledgementNumber(), 
+            dg.getAcknowledgementNumber(),
+            dg.getFragmentedFlag(), 
             dg.getPayloadSize(), 
             publicKey
         );
@@ -172,6 +182,7 @@ class NetTaskRegisterChallenge extends NetTask {
     public constructor (
         sequenceNumber: number,
         acknowledgementNumber: number,
+        fragmented: boolean,
         payloadSize: number,
         publicKey: Buffer,
         challenge: Buffer,
@@ -180,6 +191,7 @@ class NetTaskRegisterChallenge extends NetTask {
         super(
             sequenceNumber,
             acknowledgementNumber,
+            fragmented,
             NetTaskDatagramType.REGISTER_CHALLENGE, 
             payloadSize
         );
@@ -220,7 +232,8 @@ class NetTaskRegisterChallenge extends NetTask {
 
         return new NetTaskRegisterChallenge(
             dg.getSequenceNumber(), 
-            dg.getAcknowledgementNumber(), 
+            dg.getAcknowledgementNumber(),
+            dg.getFragmentedFlag(), 
             dg.getPayloadSize(), 
             publicKey, 
             challenge,
@@ -235,12 +248,14 @@ class NetTaskRegisterChallenge2 extends NetTask {
     public constructor (
         sequenceNumber: number,
         acknowledgementNumber: number,
+        fragmented: boolean,
         payloadSize: number,
         challenge: Buffer
     ) {
         super(
             sequenceNumber,
             acknowledgementNumber,
+            fragmented,
             NetTaskDatagramType.REGISTER_CHALLENGE2, 
             payloadSize
         );
@@ -270,6 +285,7 @@ class NetTaskRegisterChallenge2 extends NetTask {
         return new NetTaskRegisterChallenge2(
             dg.getSequenceNumber(), 
             dg.getAcknowledgementNumber(), 
+            dg.getFragmentedFlag(),
             dg.getPayloadSize(), 
             challenge
         );
@@ -286,10 +302,11 @@ class NetTaskRequestTask extends NetTask {
     public constructor(
         sequenceNumber: number,
         acknowledgementNumber: number,
+        fragmented: boolean,
         payloadSize: number,
         message: string
     ) {
-        super(sequenceNumber, acknowledgementNumber, NetTaskDatagramType.REQUEST_TASK, payloadSize);
+        super(sequenceNumber, acknowledgementNumber, fragmented, NetTaskDatagramType.REQUEST_TASK, payloadSize);
         this.message = message;
     }
 
@@ -323,7 +340,7 @@ class NetTaskRequestTask extends NetTask {
         const senenc = reader.read(senencLen);
         const desMessage = ECDHE.deserializeEncryptedMessage(senenc);
         const message = ecdhe.decrypt(desMessage);
-        return new NetTaskRequestTask(123123, 123123, 0, message.toString());
+        return new NetTaskRequestTask(123123, 123123, true, 0, message.toString());
     }
 
 }

@@ -110,6 +110,7 @@ class UDPClient extends UDPConnection {
                         const register2Dg = new NetTaskRegisterChallenge2 (
                             123123,
                             123123,
+                            false,
                             5555,
                             ECDHE.serializeChallenge(confirm.challenge)
                         );
@@ -159,7 +160,7 @@ class UDPClient extends UDPConnection {
         /**
          * First phase of the Registration Process, where an Agent sends the Server his public key.
          */
-        const registerDg = new NetTaskRegister(123123, 123123, 5555, this.ecdhe.publicKey);
+        const registerDg = new NetTaskRegister(123123, 123123, false, 5555, this.ecdhe.publicKey);
         this.send(registerDg.makeNetTaskRegisterDatagram());
     }
 
