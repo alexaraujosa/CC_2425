@@ -120,9 +120,11 @@ class UDPClient extends UDPConnection {
                     case NetTaskDatagramType.CONNECTION_REJECTED: {
                         this.logger.error("Connection rejected. Try again later.");
                         process.exit(1);
+                        break;
                     }
                     case NetTaskDatagramType.REQUEST_TASK: {
                         const nttttt = NetTaskRequestTask.deserialize(reader, this.ecdhe, nt);
+                        
                         this.logger.log(nttttt);
 
                         this.logger.info("\n\nStaring to execute tasks: \n\n");
@@ -133,7 +135,7 @@ class UDPClient extends UDPConnection {
                         break;
                     }
                     default:{
-                        this.logger.error("Received unidentified datagram!!")
+                        this.logger.error("Received unidentified datagram!!");
                         break;
                     }
                 }

@@ -142,8 +142,8 @@ class Parser {
         case "number": {
             if (typeof process.env[name] === "number") return process.env[name]!;
             return parseFloat(process.env[name] as string) as unknown as NodeJS.ProcessEnv[T];
-        }`.split('\n').map(l => `        ${l}`).join('\n');
-        this.capabilityText += '\n';
+        }`.split("\n").map(l => `        ${l}`).join("\n");
+        this.capabilityText += "\n";
 
         this.capabilities.push(this.CAPABILITIES.NUMBER);
     }
@@ -155,8 +155,8 @@ class Parser {
         case "boolean": {
             if (typeof process.env[name] === "boolean") return process.env[name]!;
             return process.env[name] === "true" as unknown as NodeJS.ProcessEnv[T];
-        }`.split('\n').map(l => `        ${l}`).join('\n');
-        this.capabilityText += '\n';
+        }`.split("\n").map(l => `        ${l}`).join("\n");
+        this.capabilityText += "\n";
 
         this.capabilities.push(this.CAPABILITIES.BOOLEAN);
     }
@@ -165,7 +165,7 @@ class Parser {
         if (this.capabilities.includes(this.CAPABILITIES.STRING)) return;
 
         this.capabilityText += `case "string": return process.env[name]!;`;
-        this.capabilityText += '\n';
+        this.capabilityText += "\n";
 
         this.capabilities.push(this.CAPABILITIES.STRING);
     }
@@ -229,7 +229,7 @@ function processEnvVariables(envContent: string): EnvVar[] {
 function emitTypes(envVars: EnvVar[]): string {
     let content = "";
     content += `declare namespace NodeJS {\n    export interface ProcessEnv {\n`;
-    content += envVars.map(envVar => `        ${envVar.name}: ${envVar.type},`).join('\n');
+    content += envVars.map(envVar => `        ${envVar.name}: ${envVar.type},`).join("\n");
     content += "\n    }\n}\n";
 
     return content;

@@ -15,7 +15,7 @@ let logger: DefaultLogger;
 function formatDate(date: Date) {
     const months = ["JAN", "FEB", "MAR", "APR", "MAY", "JUN", "JUL", "AUG", "SEP", "OCT", "NOV", "DEC"];
     
-    const day = date.getDate().toString().padStart(2, '0');
+    const day = date.getDate().toString().padStart(2, "0");
     const month = months[date.getMonth()];
     const year = date.getFullYear().toString().slice(-2);
   
@@ -45,7 +45,7 @@ while (fs.existsSync(path.join(outputDirectory, `${outputZipFileName}.zip`))) {
 }
 const outputZipFilePath = path.join(outputDirectory, `${outputZipFileName}.zip`);
 
-const archive = archiver("zip", { zlib: { level: 9 }, comment: process.argv.slice(2).join(' ').replaceAll("\\n", '\n') });
+const archive = archiver("zip", { zlib: { level: 9 }, comment: process.argv.slice(2).join(" ").replaceAll("\\n", "\n") });
 const output = fs.createWriteStream(outputZipFilePath);
 archive.pipe(output);
 

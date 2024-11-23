@@ -1,5 +1,5 @@
-import mongoose, { Schema, Model } from 'mongoose';
-import { IDevice } from '../interfaces/IDevice.js';
+import mongoose, { Schema, Model } from "mongoose";
+import { IDevice } from "../interfaces/IDevice.js";
 
 // Device schema - Defines mongoDB Schema
 const DeviceSchema = new Schema<IDevice>({
@@ -15,5 +15,5 @@ const DeviceSchema = new Schema<IDevice>({
 });
 
 // Mongoose model for the Device schema.
-const deviceModel: Model<IDevice> = mongoose.model<IDevice>('Device', DeviceSchema);
+const deviceModel: Model<IDevice> = mongoose.model<IDevice>("Device", DeviceSchema);
 export default deviceModel;

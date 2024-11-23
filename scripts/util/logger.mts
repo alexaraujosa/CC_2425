@@ -110,7 +110,7 @@ class _Logger<L extends Levels> {
             const color = levels[level].color;
             if (typeof color === "string") {
                 if (color === "none") this.levels[level].color = logColorNone;
-                else if (color[0] === '#') this.levels[level].color = chalk.hex(color);
+                else if (color[0] === "#") this.levels[level].color = chalk.hex(color);
                 else if (color.startsWith("rgb")) {
                     const [r, g, b] = color.match(/\d+/g)!.map(Number);
                     this.levels[level].color = chalk.rgb(r, g, b);

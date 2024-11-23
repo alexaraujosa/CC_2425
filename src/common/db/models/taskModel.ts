@@ -1,5 +1,5 @@
-import mongoose, { Schema, Model } from 'mongoose';
-import { ITask } from '../interfaces/ITask.js';
+import mongoose, { Schema, Model } from "mongoose";
+import { ITask } from "../interfaces/ITask.js";
 
 // Task schema - Defines mongoDB Schema
 const TaskSchema = new Schema<ITask>({
@@ -26,6 +26,6 @@ const TaskSchema = new Schema<ITask>({
 });
 
 // Mongoose model for the Task schema.
-const taskModel: Model<ITask> = mongoose.model<ITask>('Task', TaskSchema);
+const taskModel: Model<ITask> = mongoose.model<ITask>("Task", TaskSchema);
 export default taskModel;
 

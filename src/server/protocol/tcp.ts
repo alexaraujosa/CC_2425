@@ -75,10 +75,10 @@ class TCPServerConnection extends TCPConnection {
 
             if (reader.eof())  break;
             if (AlertFlow.verifySignature(reader)) {
-                let afRequest = AlertFlow.readAlertFlowDatagram(reader);
+                const afRequest = AlertFlow.readAlertFlowDatagram(reader);
                 this.logger.info(afRequest);
 
-                let afResponse = new AlertFlow(
+                const afResponse = new AlertFlow(
                     afRequest.getAgentId(), 
                     AlertFlowDatagramType.RESPONSE_ALERT,
                     0 

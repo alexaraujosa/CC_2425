@@ -6,16 +6,17 @@
  * Copyright (c) 2024 Pauloarf https://github.com/Pauloarf
  */
 
-import mongoose, { Model } from 'mongoose';
-import { IDevice } from './interfaces/IDevice.js';
-import { ITask } from './interfaces/ITask.js';
+import mongoose, { Model } from "mongoose";
+import { IDevice } from "./interfaces/IDevice.js";
+import { ITask } from "./interfaces/ITask.js";
 import { getOrCreateGlobalLogger } from "$common/util/logger.js";
-import { addMetrics, IMetrics } from './interfaces/IMetrics.js';
-import deviceModel from './models/deviceModel.js';
-import taskModel from './models/taskModel.js';
-import metricsModel from './models/IMetricsModel.js';
+import { addMetrics, IMetrics } from "./interfaces/IMetrics.js";
+import deviceModel from "./models/deviceModel.js";
+import taskModel from "./models/taskModel.js";
+import metricsModel from "./models/IMetricsModel.js";
 
-const MONGO_URL = 'mongodb://localhost:27017/CCDatabase';
+// const MONGO_URL = 'mongodb://localhost:27017/CCDatabase';
+const MONGO_URL = "mongodb://192.168.56.101:27017/CCDatabase";
 
 /**
  * A Data access object that establishes connection with a MongoDB database,
@@ -51,9 +52,9 @@ class DatabaseDAO {
     private async connect() {
         try {
             await mongoose.connect(MONGO_URL);
-            this.logger.success(`Connected with mongoDB uing database ${MONGO_URL.slice( MONGO_URL.lastIndexOf('/'), MONGO_URL.length)}`);
-        } catch (error) {
-            throw new Error('Error connecting to MongoDB:');
+            this.logger.success(`Connected with mongoDB uing database ${MONGO_URL.slice( MONGO_URL.lastIndexOf("/"), MONGO_URL.length)}`);
+        } catch (_) {
+            throw new Error("Error connecting to MongoDB:");
         }
     }
 
@@ -66,7 +67,7 @@ class DatabaseDAO {
      */
     public async storeDevice(values: Partial<IDevice>): Promise<number> {
         try{
-            let foundDevice = await this.deviceModel.findOne({ ip: values.ip });
+            const foundDevice = await this.deviceModel.findOne({ ip: values.ip });
             
             if (foundDevice) {
                 this.updateDevice(foundDevice.ip, values);
@@ -74,7 +75,7 @@ class DatabaseDAO {
                 return foundDevice.id;
             }
     
-            const lastDevice = await this.deviceModel.findOne().sort({ id: 'descending' });
+            const lastDevice = await this.deviceModel.findOne().sort({ id: "descending" });
             const newId = lastDevice ? lastDevice.id + 1 : 1;
     
             const device = new this.deviceModel({
@@ -89,7 +90,7 @@ class DatabaseDAO {
         }
     }
     
-   /**
+    /**
      * Retrieves a device by its IP.
      * @param {string} ip - The unique identifier of the device.
      * @returns {Promise<IDevice | null>} The device data, or null if not found.
@@ -168,13 +169,13 @@ class DatabaseDAO {
             const lastTask = await this.taskModel.findOne().sort({ id: -1 });
             const newId = lastTask ? lastTask.id + 1 : 1;
 
-            values.id = newId
+            values.id = newId;
 
             const task = new this.taskModel(values);
 
             await task.save();
             return newId;
-        } catch (error) {
+        } catch (_) {
             throw new Error("Error storing the Task.");
         }
     }
@@ -211,7 +212,7 @@ class DatabaseDAO {
 
             return updatedTask;
         } catch {
-            throw new Error(`Error updating task with id:${id}`)
+            throw new Error(`Error updating task with id:${id}`);
         }
     }
 
@@ -225,7 +226,7 @@ class DatabaseDAO {
         try{
             return await this.taskModel.findOneAndDelete({ id });
         } catch {
-            throw new Error(`Error removing task with id:${id}`)
+            throw new Error(`Error removing task with id:${id}`);
         }
     }
     //#endregion
@@ -287,7 +288,7 @@ class DatabaseDAO {
             addMetrics(existingMetrics, newMetrics);
 
             // Save the updated metrics entry
-            existingMetrics.markModified('metrics');
+            existingMetrics.markModified("metrics");
             await existingMetrics.save();
             return existingMetrics;
         } catch (error) {
@@ -326,27 +327,27 @@ class DatabaseDAO {
      * 
      */
     public async dropDatabase(): Promise<void> {
-        process.stdout.write('Are you sure you want to drop the database? [Y/n] \n');
+        process.stdout.write("Are you sure you want to drop the database? [Y/n] \n");
     
         await new Promise<void>((resolve) => {
             process.stdin.setRawMode(true); 
             process.stdin.resume();
     
-            process.stdin.once('data', async (data) => {
+            process.stdin.once("data", async (data) => {
                 const confirmation = data.toString().toLowerCase();
                 process.stdin.setRawMode(false);
                 process.stdin.pause();
     
-                if (confirmation === 'y') {
+                if (confirmation === "y") {
                     try {
                         await mongoose.connection.dropDatabase();
-                        this.logger.success('Database dropped successfully.');
+                        this.logger.success("Database dropped successfully.");
                     } catch (error) {
-                        this.logger.error('Failed to drop the database:', error);
-                        throw new Error('Database drop operation failed');
+                        this.logger.error("Failed to drop the database:", error);
+                        throw new Error("Database drop operation failed");
                     }
                 } else {
-                    this.logger.info('Database drop canceled.');
+                    this.logger.info("Database drop canceled.");
                 }
                 resolve();
             });

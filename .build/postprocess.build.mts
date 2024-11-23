@@ -203,16 +203,16 @@ async function script(options: CLIOptions) {
     logger.log("Root:", root);
 
     const anonymousImportRegex = new RegExp(
-        `import(\\s+)[\"'](${Object.keys(tsconfig.compilerOptions.paths).map(p => `(?:${p.replace("/*", "").replaceAll('$', "\\$")})`).join('|')})([^\"']+)[\"'](;?)`, 
+        `import(\\s+)[\"'](${Object.keys(tsconfig.compilerOptions.paths).map(p => `(?:${p.replace("/*", "").replaceAll("$", "\\$")})`).join("|")})([^\"']+)[\"'](;?)`, 
         "gm"
     );
 
     const anonymousDynamicImportRegex = new RegExp(
-        `import(\\s*)\\([\"'](${Object.keys(tsconfig.compilerOptions.paths).map(p => `(?:${p.replace("/*", "").replaceAll('$', "\\$")})`).join('|')})([^\"']+)[\"']\\)(;?)`, 
+        `import(\\s*)\\([\"'](${Object.keys(tsconfig.compilerOptions.paths).map(p => `(?:${p.replace("/*", "").replaceAll("$", "\\$")})`).join("|")})([^\"']+)[\"']\\)(;?)`, 
         "gm"
     );
     const targetedImportRegex = new RegExp(
-        `import(.+)from(\\s+)[\"'](${Object.keys(tsconfig.compilerOptions.paths).map(p => `(?:${p.replace("/*", "").replaceAll('$', "\\$")})`).join('|')})([^\"']+)[\"'](;?)`, 
+        `import(.+)from(\\s+)[\"'](${Object.keys(tsconfig.compilerOptions.paths).map(p => `(?:${p.replace("/*", "").replaceAll("$", "\\$")})`).join("|")})([^\"']+)[\"'](;?)`, 
         "gm"
     );
     const incompleteImportRegex = /(import(?:[^"']+)["'])(\..*(?<!.js))(["'].+)/gm;
@@ -226,7 +226,7 @@ async function script(options: CLIOptions) {
 
     let ignored = 0;
     for (const file of files) {
-        logger.log('\n');
+        logger.log("\n");
         logger.info(`Attempting to postprocess file '${file}'...`);
 
         if (!options.ext.includes(path.extname(file))) {

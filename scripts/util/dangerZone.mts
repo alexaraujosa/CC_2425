@@ -33,11 +33,11 @@ async function confirmDangerousOperationYesNo(operation: string | ConfirmMessage
         while (true) {
             const answer = await prompt(msg);
             const res = answer.toLowerCase();
-            if (res === "yes" || res === 'y') {
+            if (res === "yes" || res === "y") {
                 rl.close();
                 resolve(true);
                 break;
-            } else if (res === "no" || res === 'n' || !repeat) {
+            } else if (res === "no" || res === "n" || !repeat) {
                 rl.close();
                 resolve(false);
                 break;

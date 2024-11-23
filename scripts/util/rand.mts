@@ -8,7 +8,7 @@
 
 import { wordList } from "./words.mts";
 
-function generateRandomPhrase(words: number = 4, separator: string = '-'): string {
+function generateRandomPhrase(words: number = 4, separator: string = "-"): string {
     const phrase = [];
     for (let i = 0; i < words; i++) {
         const randomIndex = Math.floor(Math.random() * wordList.length);

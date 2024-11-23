@@ -53,22 +53,22 @@ export interface SpecIterable<T> {
 export type HeadersInit = string[][] | Record<string, string | ReadonlyArray<string>> | Headers
 
 export declare class Headers implements SpecIterable<[string, string]> {
-	constructor (init?: HeadersInit)
-	readonly append: (name: string, value: string) => void;
-	readonly delete: (name: string) => void;
-	readonly get: (name: string) => string | null;
-	readonly has: (name: string) => boolean;
-	readonly set: (name: string, value: string) => void;
-	readonly getSetCookie: () => string[];
-	readonly forEach: (
+    constructor (init?: HeadersInit)
+    readonly append: (name: string, value: string) => void;
+    readonly delete: (name: string) => void;
+    readonly get: (name: string) => string | null;
+    readonly has: (name: string) => boolean;
+    readonly set: (name: string, value: string) => void;
+    readonly getSetCookie: () => string[];
+    readonly forEach: (
     callbackfn: (value: string, key: string, iterable: Headers) => void,
     thisArg?: unknown
   ) => void;
 
-	readonly keys: () => SpecIterableIterator<string>;
-	readonly values: () => SpecIterableIterator<string>;
-	readonly entries: () => SpecIterableIterator<[string, string]>;
-	readonly [Symbol.iterator]: () => SpecIterator<[string, string]>;
+    readonly keys: () => SpecIterableIterator<string>;
+    readonly values: () => SpecIterableIterator<string>;
+    readonly entries: () => SpecIterableIterator<[string, string]>;
+    readonly [Symbol.iterator]: () => SpecIterator<[string, string]>;
 }
 
 export type RequestCache =
@@ -136,33 +136,33 @@ export type RequestRedirect = "error" | "follow" | "manual"
 export type RequestDuplex = "half"
 
 export declare class Request implements BodyMixin {
-	constructor (input: RequestInfo, init?: RequestInit)
+    constructor (input: RequestInfo, init?: RequestInit)
 
-	readonly cache: RequestCache;
-	readonly credentials: RequestCredentials;
-	readonly destination: RequestDestination;
-	readonly headers: Headers;
-	readonly integrity: string;
-	readonly method: string;
-	readonly mode: RequestMode;
-	readonly redirect: RequestRedirect;
-	readonly referrerPolicy: string;
-	readonly url: string;
+    readonly cache: RequestCache;
+    readonly credentials: RequestCredentials;
+    readonly destination: RequestDestination;
+    readonly headers: Headers;
+    readonly integrity: string;
+    readonly method: string;
+    readonly mode: RequestMode;
+    readonly redirect: RequestRedirect;
+    readonly referrerPolicy: string;
+    readonly url: string;
 
-	readonly keepalive: boolean;
-	readonly signal: AbortSignal;
-	readonly duplex: RequestDuplex;
+    readonly keepalive: boolean;
+    readonly signal: AbortSignal;
+    readonly duplex: RequestDuplex;
 
-	readonly body: ReadableStream | null;
-	readonly bodyUsed: boolean;
+    readonly body: ReadableStream | null;
+    readonly bodyUsed: boolean;
 
-	readonly arrayBuffer: () => Promise<ArrayBuffer>;
-	readonly blob: () => Promise<Blob>;
-	readonly formData: () => Promise<FormData>;
-	readonly json: () => Promise<unknown>;
-	readonly text: () => Promise<string>;
+    readonly arrayBuffer: () => Promise<ArrayBuffer>;
+    readonly blob: () => Promise<Blob>;
+    readonly formData: () => Promise<FormData>;
+    readonly json: () => Promise<unknown>;
+    readonly text: () => Promise<string>;
 
-	readonly clone: () => Request;
+    readonly clone: () => Request;
 }
 
 export interface ResponseInit {
@@ -182,28 +182,28 @@ export type ResponseType =
 export type ResponseRedirectStatus = 301 | 302 | 303 | 307 | 308
 
 export declare class Response implements BodyMixin {
-	constructor (body?: BodyInit, init?: ResponseInit)
+    constructor (body?: BodyInit, init?: ResponseInit)
 
-	readonly headers: Headers;
-	readonly ok: boolean;
-	readonly status: number;
-	readonly statusText: string;
-	readonly type: ResponseType;
-	readonly url: string;
-	readonly redirected: boolean;
+    readonly headers: Headers;
+    readonly ok: boolean;
+    readonly status: number;
+    readonly statusText: string;
+    readonly type: ResponseType;
+    readonly url: string;
+    readonly redirected: boolean;
 
-	readonly body: ReadableStream | null;
-	readonly bodyUsed: boolean;
+    readonly body: ReadableStream | null;
+    readonly bodyUsed: boolean;
 
-	readonly arrayBuffer: () => Promise<ArrayBuffer>;
-	readonly blob: () => Promise<Blob>;
-	readonly formData: () => Promise<FormData>;
-	readonly json: () => Promise<unknown>;
-	readonly text: () => Promise<string>;
+    readonly arrayBuffer: () => Promise<ArrayBuffer>;
+    readonly blob: () => Promise<Blob>;
+    readonly formData: () => Promise<FormData>;
+    readonly json: () => Promise<unknown>;
+    readonly text: () => Promise<string>;
 
-	readonly clone: () => Response;
+    readonly clone: () => Response;
 
-	static error (): Response
-	static json(data: any, init?: ResponseInit): Response
-	static redirect (url: string | URL, status: ResponseRedirectStatus): Response
+    static error (): Response
+    static json(data: any, init?: ResponseInit): Response
+    static redirect (url: string | URL, status: ResponseRedirectStatus): Response
 }

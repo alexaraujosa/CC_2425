@@ -1,4 +1,4 @@
-import { Document } from 'mongoose';
+import { Document } from "mongoose";
 
 /**
  * Interface representing a Device document in the database.
@@ -65,4 +65,4 @@ export {
     IDevice,
     createDevice,
     deviceToString
-}
+};

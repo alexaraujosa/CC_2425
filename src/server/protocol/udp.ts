@@ -64,7 +64,7 @@ class UDPServer extends UDPConnection {
                 
 
                 const completedMsg = Buffer.alloc(64000);
-                completedMsg;
+                (() => completedMsg)();
 
                 switch (header.getType()) {
 

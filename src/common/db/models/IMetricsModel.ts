@@ -1,5 +1,5 @@
-import mongoose, { Schema, Model } from 'mongoose';
-import { IMetrics } from '../interfaces/IMetrics.js';
+import mongoose, { Schema, Model } from "mongoose";
+import { IMetrics } from "../interfaces/IMetrics.js";
 
 // Metrics schema - Defines mongoDB Schema
 const MetricsSchema = new Schema<IMetrics>({
@@ -10,8 +10,8 @@ const MetricsSchema = new Schema<IMetrics>({
         required: true
     }
 });
-MetricsSchema.index({taskID: 1, deviceSessionID: 1}, {unique: true})
+MetricsSchema.index({taskID: 1, deviceSessionID: 1}, {unique: true});
 
 // Mongoose model for the Metrics schema.
-const metricsModel: Model<IMetrics> = mongoose.model<IMetrics>('Metrics', MetricsSchema);
+const metricsModel: Model<IMetrics> = mongoose.model<IMetrics>("Metrics", MetricsSchema);
 export default metricsModel;

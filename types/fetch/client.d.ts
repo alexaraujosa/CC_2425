@@ -12,13 +12,13 @@ import buildConnector from "./connector";
  * A basic HTTP/1.1 client, mapped on top a single TCP/TLS connection. Pipelining is disabled by default.
  */
 export class Client extends Dispatcher {
-	constructor(url: string | URL, options?: Client.Options);
-	/** Property to get and set the pipelining factor. */
-	pipelining: number;
-	/** `true` after `client.close()` has been called. */
-	closed: boolean;
-	/** `true` after `client.destroyed()` has been called or `client.close()` has been called and the client shutdown has completed. */
-	destroyed: boolean;
+    constructor(url: string | URL, options?: Client.Options);
+    /** Property to get and set the pipelining factor. */
+    pipelining: number;
+    /** `true` after `client.close()` has been called. */
+    closed: boolean;
+    /** `true` after `client.destroyed()` has been called or `client.close()` has been called and the client shutdown has completed. */
+    destroyed: boolean;
 }
 
 export declare namespace Client {

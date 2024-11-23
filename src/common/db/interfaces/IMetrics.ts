@@ -1,3 +1,4 @@
+import { getOrCreateGlobalLogger } from "$common/util/logger.js";
 import { Document } from "mongoose";
 
 /**
@@ -55,13 +56,15 @@ function addMetrics(
     metricTable: Partial<IMetrics>, 
     metrics: { [metricName: string]: { valor: number, timestamp: Date, alert: boolean } }
 ) {
-    if (typeof metricTable.metrics !== 'object' || metricTable.metrics === null) {
+    const logger = getOrCreateGlobalLogger();
+    
+    if (typeof metricTable.metrics !== "object" || metricTable.metrics === null) {
         throw new Error("This metric table does not have a valid `metrics` object.");
     }
 
     for (const [metricName, { valor, timestamp, alert }] of Object.entries(metrics)) {
         if (!(metricName in metricTable.metrics)) {
-            console.error(`Metric '${metricName}' is missing in the metric table.`);
+            logger.error(`Metric '${metricName}' is missing in the metric table.`);
             throw new Error(`Metric table does not contain the metric '${metricName}'.`);
         }
 
@@ -87,17 +90,17 @@ function addMetrics(
  */
 function metricsToString(metricsObj: IMetrics): string {
     const { taskID, deviceSessionID, metrics } = metricsObj;
-    let result = `Task ID: ${taskID}\nDevice Session ID: ${deviceSessionID.toString('hex')}\n`;
+    let result = `Task ID: ${taskID}\nDevice Session ID: ${deviceSessionID.toString("hex")}\n`;
 
     for (const metricName in metrics) {
-        if (metrics.hasOwnProperty(metricName)) {
+        if (metricName in metrics) {
             const metricData = metrics[metricName];
 
             if (metricData && Array.isArray(metricData.metric)) {
                 result += `\nMetric: ${metricName}\n`;
 
                 metricData.metric.forEach((metric, index) => {
-                    const alertStatus = metric.alert ? 'ALERT' : 'No Alert';
+                    const alertStatus = metric.alert ? "ALERT" : "No Alert";
                     result += `  Metric ${index + 1} - Value: ${metric.value}, Timestamp: ${metric.timestamp.toISOString()}, Status: ${alertStatus}\n`;
                 });
             } else {

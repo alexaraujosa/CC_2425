@@ -9,7 +9,7 @@
  */
 function getCallerFilePathAndPosition(parentPath: string, ignoreLevels: number): string {
     const error = new Error();
-    const stackLines = (error.stack as string).split('\n').slice(ignoreLevels + 1);
+    const stackLines = (error.stack as string).split("\n").slice(ignoreLevels + 1);
   
     for (const line of stackLines) {
         const filePositionRegex = /at\s+(.*?)\s+\((.*?):(\d+):\d+\)/;
@@ -17,7 +17,7 @@ function getCallerFilePathAndPosition(parentPath: string, ignoreLevels: number):
 
         if (match && match[1] !== "getCallerFilePathAndPosition") {
             const filePath = match[2];
-            const relativeFilePath = filePath.replace(new RegExp(parentPath.replaceAll('\\', "\\\\"), "ig"), "").replace(/^\//, "");
+            const relativeFilePath = filePath.replace(new RegExp(parentPath.replaceAll("\\", "\\\\"), "ig"), "").replace(/^\//, "");
             const position = match[3];
 
             return `${relativeFilePath}:${position}`.replace(/^[\\/]/, "");

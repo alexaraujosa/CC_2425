@@ -94,7 +94,7 @@ class NetTask {
         const logger = getOrCreateGlobalLogger();
         const version = reader.readUInt32();
         if(version != NET_TASK_VERSION) {
-            logger.pError(`NETTASK Datagram Invalid Version. Excepted: ${NET_TASK_VERSION}. Received: ${version}.`)
+            logger.pError(`NETTASK Datagram Invalid Version. Excepted: ${NET_TASK_VERSION}. Received: ${version}.`);
         }
 
         const sequenceNumber = reader.readUInt32();

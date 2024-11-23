@@ -18,8 +18,8 @@ function deepClone<T extends object>(o: T): T {
     for (const i of Object.keys(o)) {
         const val = !o[i as keyof typeof o] 
             || typeof o[i as keyof typeof o] !== "object" 
-                ? o[i as keyof typeof o] 
-                : deepClone(o[i as keyof typeof o] as object);
+            ? o[i as keyof typeof o] 
+            : deepClone(o[i as keyof typeof o] as object);
 
         if (val === undefined) continue;
         newO[i as keyof typeof o] = val as T[keyof T];

@@ -90,7 +90,7 @@ async function script(options: CLIOptions) {
         const passphrase = generateRandomPhrase();
         logger.log("PASSPHRASE:", passphrase);
         await confirmDangerousOperationPassphrase((_, passphrase) => {
-            return chalk.bgRed.white(`WARNING: Force mode is enabled. This will delete all targets without confirmation. To proceed, type '${passphrase}' to confirm:`) + ' ';
+            return chalk.bgRed.white(`WARNING: Force mode is enabled. This will delete all targets without confirmation. To proceed, type '${passphrase}' to confirm:`) + " ";
         }, passphrase, true);
     }
 

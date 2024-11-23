@@ -1,4 +1,4 @@
-import { Document } from 'mongoose';
+import { Document } from "mongoose";
 
 /**
  * Enumeration for defining the IPerf operation mode.
@@ -41,7 +41,7 @@ interface IOptions {
  * @returns {IOptions} - An object containing the configured options.
  */
 function createOptions(mode?: IPERF_MODE, target?: string, duration?: number, transport?: IPERF_TRANSPORT, interval?: number, counter?: number): IOptions{
-    const opt: IOptions = {}
+    const opt: IOptions = {};
     
     opt.mode = mode;
     opt.target = target;
@@ -60,7 +60,7 @@ function createOptions(mode?: IPERF_MODE, target?: string, duration?: number, tr
  * @returns {string} The idented string with the information from the otpions.
  */
 function optionsToString(options: IOptions): string{
-    return `Options: mode:${options.mode ? options.mode : `EMPTY`};target:${options.target ? options.target : `EMPTY`};duration:${options.duration ? options.duration : 'EMPTY'};transport:${options.transport ? options.transport : `Empty`};interval:${options.interval ? options.interval : `EMPTY`};counter:${options.counter ? options.counter : `EMPTY`}`;
+    return `Options: mode:${options.mode ? options.mode : `EMPTY`};target:${options.target ? options.target : `EMPTY`};duration:${options.duration ? options.duration : "EMPTY"};transport:${options.transport ? options.transport : `Empty`};interval:${options.interval ? options.interval : `EMPTY`};counter:${options.counter ? options.counter : `EMPTY`}`;
 }
 
 /**
@@ -152,7 +152,7 @@ function createAlertConditions(cpu_usage?: number, ram_usage?: number, interface
         packet_loss: packet_loss,
         jitter: jitter,
         latency: latency,
-    }
+    };
 }
 
 /**
@@ -200,7 +200,7 @@ function createTask(
         global_options: global_opt,
         link_metrics: link_metrics,
         alert_conditions: alert_conditions,           
-    }
+    };
 }
 
 /**
@@ -211,11 +211,11 @@ function createTask(
  */
 function taskToString(task: ITask): string {
     return `Task Details:
-    Frequency: ${task.frequency || 'EMPTY'} ms
-    Device Metrics: ${task.device_metrics.length > 0 ? task.device_metrics.join(", ") : 'EMPTY'}
-    Global Options: ${task.global_options ? optionsToString(task.global_options) : 'EMPTY'}
-    Link Metrics: ${task.link_metrics ? linkMetricsToString(task.link_metrics) : 'EMPTY'}
-    Alert Conditions: ${task.alert_conditions ? alertConditionsToString(task.alert_conditions) : 'EMPTY'}`;
+    Frequency: ${task.frequency || "EMPTY"} ms
+    Device Metrics: ${task.device_metrics.length > 0 ? task.device_metrics.join(", ") : "EMPTY"}
+    Global Options: ${task.global_options ? optionsToString(task.global_options) : "EMPTY"}
+    Link Metrics: ${task.link_metrics ? linkMetricsToString(task.link_metrics) : "EMPTY"}
+    Alert Conditions: ${task.alert_conditions ? alertConditionsToString(task.alert_conditions) : "EMPTY"}`;
 }
 
 
@@ -231,4 +231,4 @@ export {
     ITask,
     createTask,
     taskToString
-}
+};
