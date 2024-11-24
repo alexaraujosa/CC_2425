@@ -18,41 +18,41 @@ function makeInvalid(error?: Error): Invalid {
 /**
  * Represents a valid state.
  */
-type Valid = Readonly<{ valid: true }>;
-function makeValid(): Valid {
-    return { valid: true };
+type Valid<T> = Readonly<{ valid: true, value?: T }>;
+function makeValid<T>(value?: T): Valid<T> {
+    return { valid: true, value };
 }
 
 /**
  * Represents a validation state, not yet asserted.
  */
-type Validation = Invalid | Valid;
+type Validation<T> = Invalid | Valid<T>;
 
 /**
  * Type assertion for whether a validation state is {@link Valid}.
  */
-function isValid(v: Validation): v is Valid {
+function isValid<T>(v: Validation<T>): v is Valid<T> {
     return v.valid;
 }
 
 /**
  * Type assertion for whether a validation state is {@link Invalid}.
  */
-function isInvalid(v: Validation): v is Invalid {
+function isInvalid<T>(v: Validation<T>): v is Invalid {
     return !v.valid;
 }
 
 /**
  * Type assertion for whether a value is a {@link Validation} state.
  */
-function isValidation(v: unknown): v is Validation {
+function isValidation<T>(v: unknown): v is Validation<T> {
     return typeof v === "object" && v !== null && "valid" in v && typeof v.valid === "boolean";
 }
 
 /**
  * A shorthand for a {@link Valid} state.
  */
-const VALID = makeValid();
+const VALID = makeValid<never>();
 
 /**
  * A shorthand for an {@link Invalid} state, with no error associated.
