@@ -11,10 +11,10 @@ import isBinMode from "$common/util/isBinMode.js";
 import { initConfig } from "./config.js";
 import { getOrCreateGlobalLogger } from "$common/util/logger.js";
 import { DatabaseDAO } from "$common/db/databaseDAO.js";
-import { createDevice } from "$common/db/interfaces/IDevice.js";
+// import { createDevice } from "$common/db/interfaces/IDevice.js";
 import { createAlertConditions, createLinkMetrics, createOptions, createTask, IOptions, IPERF_MODE, IPERF_TRANSPORT, taskToString } from "$common/db/interfaces/ITask.js";
 // import { dbTester } from "../db/dbTester.js";
-DatabaseDAO;createDevice;createTask;
+// DatabaseDAO;createDevice;createTask;
 import { UDPServer } from "./protocol/udp.js";
 import { TCPServer } from "./protocol/tcp.js";
 import { ConnectionTarget } from "$common/protocol/connection.js";
@@ -51,26 +51,26 @@ export async function serverInit(options: CLIOptions) {
     const db = new DatabaseDAO();
 
     for (const task of Object.values(config.tasks)) {
-        let device_metrics: string[] = [];
+        const device_metrics: string[] = [];
         if (task.device_metrics.cpu_usage)  device_metrics.push("cpu");
         if (task.device_metrics.interface_stats)  device_metrics.push("interface_stats");
         if (task.device_metrics.ram_usage)  device_metrics.push("memory");
         if (task.device_metrics.volume)  device_metrics.push("volume");
 
-        let link_metrics: string[] = [];
-        let options: IOptions[] = [];
-        if (task.link_metrics.bandwith)  {
-            link_metrics.push("bandwith");
+        const link_metrics: string[] = [];
+        const options: IOptions[] = [];
+        if (task.link_metrics.bandwidth)  {
+            link_metrics.push("bandwidth");
             options.push(
                 createOptions(
-                    task.link_metrics.bandwith.mode ? ((task.link_metrics.bandwith?.mode === "client") ? IPERF_MODE.CLIENT : IPERF_MODE.SERVER) : undefined,
-                    task.link_metrics.bandwith?.target,
-                    task.link_metrics.bandwith?.duration,
-                    task.link_metrics.bandwith.transport ? ((task.link_metrics.bandwith?.transport === "tcp") ? IPERF_TRANSPORT.TPC : IPERF_TRANSPORT.UDP) : undefined,
-                    task.link_metrics.bandwith?.interval,
+                    task.link_metrics.bandwidth.mode ? ((task.link_metrics.bandwidth?.mode === "client") ? IPERF_MODE.CLIENT : IPERF_MODE.SERVER) : undefined,
+                    task.link_metrics.bandwidth?.target,
+                    task.link_metrics.bandwidth?.duration,
+                    task.link_metrics.bandwidth.transport ? ((task.link_metrics.bandwidth?.transport === "tcp") ? IPERF_TRANSPORT.TPC : IPERF_TRANSPORT.UDP) : undefined,
+                    task.link_metrics.bandwidth?.interval,
                     undefined
                 )
-            )
+            );
         }
         if (task.link_metrics.jitter)  {
             link_metrics.push("jitter");
@@ -83,7 +83,7 @@ export async function serverInit(options: CLIOptions) {
                     task.link_metrics.jitter?.interval,
                     undefined
                 )
-            )
+            );
         }
         if (task.link_metrics.latency)  {
             link_metrics.push("latency");
@@ -96,7 +96,7 @@ export async function serverInit(options: CLIOptions) {
                     task.link_metrics.latency?.interval,
                     task.link_metrics.latency.counter
                 )
-            )
+            );
         }
         if (task.link_metrics.packet_loss)  {
             link_metrics.push("packet_loss");
@@ -109,7 +109,7 @@ export async function serverInit(options: CLIOptions) {
                     task.link_metrics.packet_loss?.interval,
                     undefined
                 )
-            )
+            );
         }
 
 

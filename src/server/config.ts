@@ -208,7 +208,7 @@ function validateTask(taskName: string, task: RawTask, _config: RawConfig): Vali
         // if (!task.global_options.interval && !task.link_metrics.latency?.interval)  return false;
 
         for (const metric of ["target", "counter", "interval"] as const) {
-            if (!task.global_options[metric] && task.link_metrics.latency[metric])
+            if (!task.global_options[metric] && !task.link_metrics.latency[metric])
                 return makeInvalid(new Error(`Task ${taskName} has link metric with non-overridden undefined option '${metric}'.`));
         }
         
@@ -414,7 +414,7 @@ async function initConfig(file: string) {
 }
 
 // export type { RawConfig as Config, RawTask as Task, Task as TransformedTask, Device };
-export type { Config, RawTask, Task, Device };
+export type { Config, RawTask, Task, Device};
 export {
     initConfig
 };

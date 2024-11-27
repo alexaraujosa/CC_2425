@@ -17,7 +17,7 @@
                 "counter": 5 
             },
             "link_metrics":{
-                "bandwith": {},
+                "bandwidth": {},
                 "jitter": {},
                 "packet_loss": {},
                 "latency": {} 
@@ -46,7 +46,7 @@
                 "interval": "5s"
             }, 
             "link_metrics":{
-                "bandwith": {}
+                "bandwidth": {}
             },
             "alert_conditions": {}
         },
@@ -74,7 +74,7 @@
     },
     "devices": {
         "device1": {
-            "ip": "12.23.4.2",
+            "ip": "10.0.5.10",
             "tasks":  ["task1"]
         },
         "device2": {
