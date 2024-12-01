@@ -9,7 +9,9 @@
 
 import { ECDHE } from "$common/protocol/ecdhe.js";
 import { BufferReader, BufferWriter } from "$common/util/buffer.js";
-import { getOrCreateGlobalLogger } from "$common/util/logger.js";
+import { DefaultLogger, getOrCreateGlobalLogger } from "$common/util/logger.js";
+import { Task } from "src/server/config.js";
+import { _SPACKTask, deserializeSPACK, isSPACKTaskCollection, packTaskSchemas, serializeSPACK, SPACKPacked, SPACKTask, SPACKTaskCollectionPacked, unpackTaskSchemas } from "./spack.js";
 
 //#region ============== Constants ==============
 const NET_TASK_VERSION = 1;
@@ -22,7 +24,7 @@ enum NetTaskDatagramType {
     REGISTER_CHALLENGE2,
     CONNECTION_REJECTED,
     //#endregion ------- REGISTER PROCESS -------
-    REQUEST_TASK,
+    PUSH_SCHEMAS,
     REQUEST_METRICS,
     RESPONSE_TASK,
     RESPONSE_METRICS
@@ -34,12 +36,13 @@ enum NetTaskDatagramType {
  * to transmit tasks and metric colletions.
  */
 class NetTask {
-    private version: number;
-    private sequenceNumber: number;
-    private fragmented: boolean;
-    private acknowledgementNumber: number;
-    private type: NetTaskDatagramType;
-    private payloadSize: number;
+    protected version: number;
+    protected sequenceNumber: number;
+    protected fragmented: boolean;
+    protected acknowledgementNumber: number;
+    protected type: NetTaskDatagramType;
+    protected payloadSize: number;
+    protected logger!: DefaultLogger;
 
     public constructor(
         sequenceNumber: number,
@@ -54,6 +57,13 @@ class NetTask {
         this.fragmented = fragmented;
         this.type = type;
         this.payloadSize = payloadSize;
+
+        // this.logger = getOrCreateGlobalLogger();
+        Object.defineProperty(this, "logger", {
+            value: getOrCreateGlobalLogger(),
+            enumerable: false,
+            configurable: true
+        });
     }
 
     public getVersion(): number { return this.version; }
@@ -146,7 +156,7 @@ class NetTaskRegister extends NetTask {
 
     public get publicKey(): Buffer { return this._publicKey; }
 
-    public makeNetTaskRegisterDatagram(): Buffer {
+    public serialize(): Buffer {
         const writer = super.makeNetTaskDatagram();
         const newWriter = new BufferWriter();
         newWriter.write(writer);
@@ -156,7 +166,7 @@ class NetTaskRegister extends NetTask {
         return newWriter.finish();
     }
 
-    public static readNetTaskRegisterDatagram(reader: BufferReader, dg: NetTask): NetTaskRegister {
+    public static deserialize(reader: BufferReader, dg: NetTask): NetTaskRegister {
         if (dg.getType() != NetTaskDatagramType.REQUEST_REGISTER) {
             // TODO: Error handler
         }
@@ -204,7 +214,7 @@ class NetTaskRegisterChallenge extends NetTask {
     public get salt(): Buffer { return this._salt; }
     public get challenge(): Buffer { return this._challenge; }
 
-    public makeNetTaskRegisterChallenge(): Buffer {
+    public serialize(): Buffer {
         const writer = super.makeNetTaskDatagram();
         const newWriter = new BufferWriter();
         newWriter.write(writer);
@@ -218,7 +228,7 @@ class NetTaskRegisterChallenge extends NetTask {
         return newWriter.finish();
     }
 
-    public static readNetTaskRegisterChallenge(reader: BufferReader, dg: NetTask): NetTaskRegisterChallenge {
+    public static deserialize(reader: BufferReader, dg: NetTask): NetTaskRegisterChallenge {
         if (dg.getType() != NetTaskDatagramType.REGISTER_CHALLENGE) {
             // TODO: Error handler
         }
@@ -264,7 +274,7 @@ class NetTaskRegisterChallenge2 extends NetTask {
 
     public get challenge(): Buffer { return this._challenge; }
 
-    public makeNetTaskRegisterChallenge2(): Buffer {
+    public serialize(): Buffer {
         const writer = super.makeNetTaskDatagram();
         const newWriter = new BufferWriter();
         newWriter.write(writer);
@@ -274,7 +284,7 @@ class NetTaskRegisterChallenge2 extends NetTask {
         return newWriter.finish();
     }
 
-    public static readNetTaskRegisterChallenge2(reader: BufferReader, dg: NetTask): NetTaskRegisterChallenge2 {
+    public static deserialize(reader: BufferReader, dg: NetTask): NetTaskRegisterChallenge2 {
         if (dg.getType() != NetTaskDatagramType.REGISTER_CHALLENGE2) {
             // TODO: Error handler
         }
@@ -294,20 +304,28 @@ class NetTaskRegisterChallenge2 extends NetTask {
 
 //#endregion ============== REGISTER PROCESS ==============
 
-
-class NetTaskRequestTask extends NetTask {
-    private message: string;
+class NetTaskPushSchemas extends NetTask {
+    private spack!: SPACKPacked | { [key: string]: SPACKTask; };
+    // private message: string;
     private ecdhe?: ECDHE;
 
     public constructor(
         sequenceNumber: number,
         acknowledgementNumber: number,
         fragmented: boolean,
-        payloadSize: number,
-        message: string
+        spack: SPACKPacked | { [key: string]: SPACKTask; }
+        // message: string
     ) {
-        super(sequenceNumber, acknowledgementNumber, fragmented, NetTaskDatagramType.REQUEST_TASK, payloadSize);
-        this.message = message;
+        super(sequenceNumber, acknowledgementNumber, fragmented, NetTaskDatagramType.PUSH_SCHEMAS, 0);
+        this.spack = spack;
+
+        // this.message = message;
+        // this.spack = <never>serializeSPACK;
+        // (() => this.spack)();
+    }
+
+    public getSchemas() {
+        return this.spack;
     }
 
     public link(ecdhe: ECDHE): this {
@@ -315,24 +333,45 @@ class NetTaskRequestTask extends NetTask {
         return this;
     }
 
-    public makeNetTaskRequestTask(): Buffer {
+    public serialize(): Buffer {
         if (!this.ecdhe) {
             // TODO: Throw error
             throw new Error("Error 404 joke");
         }
-        const writer = super.makeNetTaskDatagram();
-        const newWriter = new BufferWriter();
-        const enc = this.ecdhe?.encrypt(this.message);
+
+        // this.logger.info("SPACK:", this.spack);
+        // const pack = serializeSPACK(this.spack);
+        let pack: Buffer;
+        if (isSPACKTaskCollection(this.spack)) {
+            // this.logger.info("TRUESPACK:", Object.fromEntries(Object.entries(this.spack).map(([k,v]) => [k, <Task>(<_SPACKTask>v).getUnpacked()])));
+            // this.logger.info("TRUESPACKPACK:", packTaskSchemas(Object.fromEntries(Object.entries(this.spack).map(([k,v]) => [k, <Task>(<_SPACKTask>v).getUnpacked()]))));
+            pack = serializeSPACK(packTaskSchemas(
+                Object.fromEntries(Object.entries(this.spack).map(([k,v]) => [k, <Task>(<_SPACKTask>v).getUnpacked()]))
+            ));
+        } else {
+            pack = serializeSPACK(this.spack);
+        }
+        // this.logger.info("SERSPACK:", pack.toString("hex"));
+        
+        this.payloadSize = pack.byteLength;
+        const header = super.makeNetTaskDatagram();
+
+        // const enc = this.ecdhe?.encrypt(this.message);
+        const enc = this.ecdhe?.encrypt(pack);
         const sencENC = ECDHE.serializeEncryptedMessage(enc);
-        newWriter.write(writer);
+
+        const newWriter = new BufferWriter();
+        newWriter.write(header);
         newWriter.writeUInt32(sencENC.byteLength);
         newWriter.write(sencENC);
         
         return newWriter.finish();
     }
 
-    public static deserialize(reader: BufferReader, ecdhe: ECDHE, dg: NetTask): NetTaskRequestTask {
-        if (dg.getType() != NetTaskDatagramType.REQUEST_TASK) {
+    public static deserialize(reader: BufferReader, ecdhe: ECDHE, dg: NetTask): NetTaskPushSchemas {
+        // const logger = getOrCreateGlobalLogger();
+
+        if (dg.getType() != NetTaskDatagramType.PUSH_SCHEMAS) {
             // TODO: Error handler
         }
 
@@ -340,10 +379,26 @@ class NetTaskRequestTask extends NetTask {
         const senenc = reader.read(senencLen);
         const desMessage = ECDHE.deserializeEncryptedMessage(senenc);
         const message = ecdhe.decrypt(desMessage);
-        return new NetTaskRequestTask(123123, 123123, true, 0, message.toString());
+
+        let tasks: { [key: string]: SPACKTask; } = {};
+        try {
+            const spack = deserializeSPACK(message);
+            // logger.log("DESER:", spack);
+            tasks = unpackTaskSchemas(<SPACKTaskCollectionPacked>spack);
+        } catch (_) {
+            throw new Error(`Malformed NetTaskPushSchemas packet: Malformed schema payload.`);
+        }
+
+        return new NetTaskPushSchemas(123123, 123123, true, tasks);
     }
 
 }
+
+// class NetTaskMetric extends NetTask {
+//     constructor() {
+
+//     }
+// }
 
 export {
     NetTask,
@@ -351,5 +406,5 @@ export {
     NetTaskRegister,
     NetTaskRegisterChallenge,
     NetTaskRegisterChallenge2,
-    NetTaskRequestTask
+    NetTaskPushSchemas
 };

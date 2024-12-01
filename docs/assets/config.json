@@ -64,7 +64,7 @@
             },
             "link_metrics":{
                 "latency": {
-                    "interval": "10s"
+                    "interval": "30s"
                 }
             },
             "alert_conditions": {
@@ -75,19 +75,19 @@
     "devices": {
         "device1": {
             "ip": "10.0.5.10",
-            "tasks":  ["task1"]
+            "tasks": ["task1"]
         },
         "device2": {
-            "ip": "12.243.45.2",
-            "tasks":  ["task2"]
+            "ip": "10.0.6.10",
+            "tasks": ["task2"]
         },
         "device3": {
-            "ip": "12.23.46.2",
-            "tasks":  ["task3"]
+            "ip": "10.0.7.10",
+            "tasks": ["task3"]
         },
-        "device4": {
+        "deviceLH": {
             "ip": "127.0.0.1",
-            "tasks":  ["task1"]
+            "tasks": ["task1"]
         }
     }
 }

@@ -45,7 +45,8 @@ export async function serverInit(options: CLIOptions) {
     const port = options.port;
 
     // Config loader
-    const json = await initConfig("docs/assets/config.json");
+    // const json = await initConfig("docs/assets/config.json");
+    const json = await initConfig("tmp/config.json");
     logger.info(json);
 
     const db = new DatabaseDAO();

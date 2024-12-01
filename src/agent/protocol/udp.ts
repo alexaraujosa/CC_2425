@@ -5,7 +5,7 @@
  * @copyright Copyright (c) 2024 DarkenLM https://github.com/DarkenLM
  */
 
-import { NetTask, NetTaskDatagramType, NetTaskRegister, NetTaskRegisterChallenge, NetTaskRegisterChallenge2, NetTaskRequestTask } from "$common/datagram/NetTask.js";
+import { NetTask, NetTaskDatagramType, NetTaskRegister, NetTaskRegisterChallenge, NetTaskRegisterChallenge2, NetTaskPushSchemas } from "$common/datagram/NetTask.js";
 import { ConnectionTarget } from "$common/protocol/connection.js";
 import { ECDHE } from "$common/protocol/ecdhe.js";
 import { UDPConnection } from "$common/protocol/udp.js";
@@ -41,55 +41,15 @@ class UDPClient extends UDPConnection {
         }
 
         // this.logger.info(`UDP Client got message from target:`, msg.toString("utf8"));
+        this.logger.info(`UDP Client got message from target:`, (msg.toString("hex").match(/../g) || []).join(""));
+
         const reader = new BufferReader(msg);
         while (!reader.eof()) {
-            while (!reader.eof() && reader.peek() !== 78)
-                reader.readUInt8();
+            while (!reader.eof() && reader.peek() !== 78) reader.readUInt8();
 
-            // //#region ============== NETFLOW ==============
-            // if (reader.peek() === 67 && verifySignature(reader)) {
-            //     const type = reader.readUInt32();// readUint32BE(4);
-            //     switch (type) {
-            //         case NetflowDatagramType.HELLO_THERE: { 
-            //             // Do fuck all
-            //             break;
-            //         }
-            //         case NetflowDatagramType.GENERAL_KENOBI: { 
-            //             this.logger.log("Got GENERAL_KENOBY frame.");
-            //             const dg = readGeneralKenobiDatagram(reader);
-            //             this.ecdhe.link(dg.publicKey, dg.salt);
-    
-            //             const verCh = this.ecdhe.verifyChallenge(dg.challenge);
-            //             // this.challengeSalt = verCh.control;
-    
-            //             // Assume authentication succeeded, compute communication salt.
-            //             this.ecdhe.regenerateKeys(verCh.control);
-    
-            //             const reply = makeTheNegotiatorDatagram(verCh.challenge);
-            //             this.send(reply);
-            //             break;
-            //         }
-            //         case NetflowDatagramType.THE_NEGOTIATOR: {
-            //             // Who needs to negotiate when you have a fucking gun?
-            //             break;
-            //         }
-            //         case NetflowDatagramType.MESSAGE: { 
-            //             const dg = readMessageDatagram(reader);
-            //             const message = this.ecdhe.decrypt(dg.message);
-    
-            //             this.logger.log(`UDP Client received message: '${message.toString("utf8")}'`);
-            //             break;
-            //         }
-            //         case NetflowDatagramType.KYS: { // Commit die.
-                        
-            //             break;
-            //         }
-            //     }
-            // }
-            // //#endregion  ============== NETFLOW ==============
             if (reader.peek() === 78 && NetTask.verifySignature(reader)) {
                 const nt = NetTask.readNetTaskDatagram(reader);
-                // this.logger.info(nt);
+                this.logger.info("UDP Agent header:", nt);
                 switch (nt.getType()) {
 
                     /**
@@ -101,7 +61,7 @@ class UDPClient extends UDPConnection {
                      * confirmed challenge.
                      */
                     case NetTaskDatagramType.REGISTER_CHALLENGE: {
-                        const registerDg = NetTaskRegisterChallenge.readNetTaskRegisterChallenge(reader, nt);
+                        const registerDg = NetTaskRegisterChallenge.deserialize(reader, nt);
                         this.ecdhe.link(registerDg.publicKey, registerDg.salt);
 
                         const confirm = this.ecdhe.verifyChallenge(ECDHE.deserializeChallenge(registerDg.challenge));
@@ -114,7 +74,7 @@ class UDPClient extends UDPConnection {
                             5555,
                             ECDHE.serializeChallenge(confirm.challenge)
                         );
-                        this.send(register2Dg.makeNetTaskRegisterChallenge2());
+                        this.send(register2Dg.serialize());
                         break;
                     }
                     case NetTaskDatagramType.CONNECTION_REJECTED: {
@@ -122,10 +82,11 @@ class UDPClient extends UDPConnection {
                         process.exit(1);
                         break;
                     }
-                    case NetTaskDatagramType.REQUEST_TASK: {
-                        const nttttt = NetTaskRequestTask.deserialize(reader, this.ecdhe, nt);
+                    case NetTaskDatagramType.PUSH_SCHEMAS: {
+                        const nttttt = NetTaskPushSchemas.deserialize(reader, this.ecdhe, nt);
                         
-                        this.logger.log(nttttt);
+                        this.logger.log("SCHEMAS:", nttttt);
+                        nttttt.link(this.ecdhe).serialize();
 
                         this.logger.info("\n\nStaring to execute tasks: \n\n");
                         
@@ -163,7 +124,7 @@ class UDPClient extends UDPConnection {
          * First phase of the Registration Process, where an Agent sends the Server his public key.
          */
         const registerDg = new NetTaskRegister(123123, 123123, false, 5555, this.ecdhe.publicKey);
-        this.send(registerDg.makeNetTaskRegisterDatagram());
+        this.send(registerDg.serialize());
     }
 
     public close() {

@@ -1,11 +1,12 @@
 import crypto from "crypto";
-import { NetTask, NetTaskDatagramType, NetTaskRegister, NetTaskRegisterChallenge, NetTaskRegisterChallenge2, NetTaskRequestTask } from "$common/datagram/NetTask.js";
+import { NetTask, NetTaskDatagramType, NetTaskRegister, NetTaskRegisterChallenge, NetTaskRegisterChallenge2, NetTaskPushSchemas } from "$common/datagram/NetTask.js";
 import { ConnectionTarget, ConnectionTargetLike, RemoteInfo } from "$common/protocol/connection.js";
 import { ChallengeControl, ECDHE } from "$common/protocol/ecdhe.js";
 import { UDPConnection } from "$common/protocol/udp.js";
 import { BufferReader } from "$common/util/buffer.js";
 import { createDevice, deviceToString } from "$common/db/interfaces/IDevice.js";
 import { DatabaseDAO } from "$common/db/databaseDAO.js";
+import { packTaskSchemas } from "$common/datagram/spack.js";
 
 /**
  * This class is meant to be used as a base for UDP Server implementations.
@@ -14,12 +15,14 @@ import { DatabaseDAO } from "$common/db/databaseDAO.js";
 class UDPServer extends UDPConnection {
     private clients: Map<string, { ecdhe: ECDHE, salt: Buffer, challenge?: ChallengeControl }>;
     private db: DatabaseDAO;
+    private devicesNames: Record<string, string>;
 
     public constructor(db: DatabaseDAO) {
         super();
 
         this.clients = new Map();
         this.db = db;
+        this.devicesNames = Object.fromEntries(Object.entries(config.devices).map(([k,v]) => [v.ip, k]));
     }
 
     public onError(err: Error): void {
@@ -49,7 +52,7 @@ class UDPServer extends UDPConnection {
     }
 
     public async onMessage(msg: Buffer, rinfo: RemoteInfo): Promise<void> {
-        // this.logger.log(`UDP Server got: ${msg} from ${ConnectionTarget.toQualifiedName(rinfo)}`);
+        this.logger.log(`UDP Server got: ${msg} from ${ConnectionTarget.toQualifiedName(rinfo)}`);
         const reader = new BufferReader(msg);
 
         while (!reader.eof()) {
@@ -58,9 +61,13 @@ class UDPServer extends UDPConnection {
 
             if (reader.eof())  break;
 
+            this.logger.log(`UDP Server reader peek:`, reader.peek().toString(16));
+
             //#endregion ============== NETFLOW ==============
             if (reader.peek() === 78 && NetTask.verifySignature(reader)) {
                 const header = NetTask.readNetTaskDatagram(reader);
+
+                this.logger.log(`UDP Server header:`, header);
                 
 
                 const completedMsg = Buffer.alloc(64000);
@@ -76,7 +83,7 @@ class UDPServer extends UDPConnection {
                      * Before sending that datagram, the server saves the agent ecdhe, that will be used on the fourth phase.
                      */
                     case NetTaskDatagramType.REQUEST_REGISTER: {
-                        const registerDg = NetTaskRegister.readNetTaskRegisterDatagram(reader, header);
+                        const registerDg = NetTaskRegister.deserialize(reader, header);
 
                         let exists = false;
                         for (const device of Object.values(config.devices)) {
@@ -103,7 +110,7 @@ class UDPServer extends UDPConnection {
                             salt
                         );
                         this.clients.set(ConnectionTarget.toQualifiedName(rinfo), { ecdhe, salt, challenge: challenge });
-                        this.send(regChallengeDg.makeNetTaskRegisterChallenge(), rinfo);
+                        this.send(regChallengeDg.serialize(), rinfo);
                         break;
                     }
 
@@ -114,7 +121,7 @@ class UDPServer extends UDPConnection {
                      * successfully completed and the Agent is inserted into the database and is ready to receive tasks.
                      */
                     case NetTaskDatagramType.REGISTER_CHALLENGE2: {
-                        const regChallenge2Dg = NetTaskRegisterChallenge2.readNetTaskRegisterChallenge2(reader, header);
+                        const regChallenge2Dg = NetTaskRegisterChallenge2.deserialize(reader, header);
 
                         const client = this.clients.get(ConnectionTarget.toQualifiedName(rinfo));
                         const confirm = client?.ecdhe.confirmChallenge(ECDHE.deserializeChallenge(regChallenge2Dg.challenge), client.challenge!);
@@ -140,11 +147,18 @@ class UDPServer extends UDPConnection {
                         const deviceById = await this.db.getDeviceByID(deviceId);
                         if(deviceById) this.logger.info("Retrieved Device by ID:", deviceToString(deviceById));
 
-                        const requestTaskDg = new NetTaskRequestTask(123123, 123123, false, 0, "e que").link(client!.ecdhe);
-                        this.send(requestTaskDg.makeNetTaskRequestTask(), rinfo);
+                        // const requestTaskDg = new NetTaskPushSchemas(123123, 123123, false, 0, "e que").link(client!.ecdhe);
+
+                        // const task = config.tasks["task1"];
+                        const cDevice = config.devices[this.devicesNames[rinfo.address]];
+                        const tasks = Object.fromEntries(Object.entries(config.tasks).filter(([k,_]) => cDevice.tasks.includes(k)));
+
+                        const spack = packTaskSchemas(tasks);
+                        const requestTaskDg = new NetTaskPushSchemas(123123, 123123, false, spack).link(client!.ecdhe);
+                        this.send(requestTaskDg.serialize(), rinfo);
                         break;
                     }
-                    case NetTaskDatagramType.REQUEST_TASK: {
+                    case NetTaskDatagramType.PUSH_SCHEMAS: {
                         // TODO
                         break;
                     }
