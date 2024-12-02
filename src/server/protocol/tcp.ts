@@ -84,6 +84,11 @@ class TCPServerConnection extends TCPConnection {
                     0 
                 );
 
+                // TODO: Ler o payload para perceber qual o alerta e o seu valor
+                // TODO: Adicionar na tabela das metricas desta task do device que executou
+                // TODO: e colocar o alerta como true e guardo o valor que arrebentou
+                // TODO: Log de que recebeu um alerta do device W da task X da metrica Y com valor Z 
+
                 this.send(afResponse.makeAlertFlowDatagram());
             }
 
@@ -151,16 +156,22 @@ class TCPServer {
     protected connections: Map<number, TCPServerConnection>;
 
     /**
+     * A map that allows the conversion of the config task ids to the database task ids.
+     */
+    protected dbMapper: Map<string, number>;
+
+    /**
      * A pointer to the fallback method used in case the "close" event is triggered by an external source 
      * in a non-gracious manner.
      */
     private _onClose: typeof this.onClose;
 
-    public constructor() {
+    public constructor(dbMapper: Map<string,number>) {
         this.server = net.createServer();
         this.logger = getOrCreateGlobalLogger();
         this.seq = 0;
         this.connections = new Map();
+        this.dbMapper = dbMapper;
 
         this.server.on("listening", this.onListen.bind(this));
         this.server.on("close", (this._onClose = this.onClose.bind(this, 1000)));

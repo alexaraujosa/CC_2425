@@ -7,6 +7,7 @@ import { BufferReader } from "$common/util/buffer.js";
 import { createDevice, deviceToString } from "$common/db/interfaces/IDevice.js";
 import { DatabaseDAO } from "$common/db/databaseDAO.js";
 import { packTaskSchemas } from "$common/datagram/spack.js";
+import { createMetrics } from "$common/db/interfaces/IMetrics.js";
 
 /**
  * This class is meant to be used as a base for UDP Server implementations.
@@ -16,13 +17,15 @@ class UDPServer extends UDPConnection {
     private clients: Map<string, { ecdhe: ECDHE, salt: Buffer, challenge?: ChallengeControl }>;
     private db: DatabaseDAO;
     private devicesNames: Record<string, string>;
+    private dbMapper: Map<string, number>;
 
-    public constructor(db: DatabaseDAO) {
+    public constructor(db: DatabaseDAO, dbMapper: Map<string, number>) {
         super();
 
         this.clients = new Map();
         this.db = db;
         this.devicesNames = Object.fromEntries(Object.entries(config.devices).map(([k,v]) => [v.ip, k]));
+        this.dbMapper = dbMapper;
     }
 
     public onError(err: Error): void {
@@ -152,6 +155,29 @@ class UDPServer extends UDPConnection {
                         // const task = config.tasks["task1"];
                         const cDevice = config.devices[this.devicesNames[rinfo.address]];
                         const tasks = Object.fromEntries(Object.entries(config.tasks).filter(([k,_]) => cDevice.tasks.includes(k)));
+
+                        for (const [taskConfigId, task] of Object.entries(tasks)) {
+                            const taskDatabaseId = this.dbMapper.get(taskConfigId);
+                            const metrics: string[] = [];
+                            if (task.device_metrics.cpu_usage)  metrics.push("cpu");
+                            if (task.device_metrics.interface_stats)  metrics.push("interface_stats");
+                            if (task.device_metrics.ram_usage)  metrics.push("memory");
+                            if (task.device_metrics.volume)  metrics.push("volume");
+                            if (task.link_metrics.bandwidth)  metrics.push("bandwidth");
+                            if (task.link_metrics.jitter)  metrics.push("jitter");
+                            if (task.link_metrics.latency)  metrics.push("latency");
+                            if (task.link_metrics.packet_loss)  metrics.push("packet_loss");
+
+                            const iMetric = createMetrics(
+                                <number> taskDatabaseId,
+                                <Buffer> client?.ecdhe.generateSessionId(client.salt),
+                                metrics
+                            );
+
+                            await this.db.storeMetrics(iMetric);
+                        }
+                       
+                        this.logger.info("=========TABELAS DE METRICAS CRIADAS==========");
 
                         const spack = packTaskSchemas(tasks);
                         const requestTaskDg = new NetTaskPushSchemas(123123, 123123, false, spack).link(client!.ecdhe);

@@ -45,13 +45,14 @@ export async function serverInit(options: CLIOptions) {
     const port = options.port;
 
     // Config loader
-    // const json = await initConfig("docs/assets/config.json");
-    const json = await initConfig("tmp/config.json");
+    const json = await initConfig("docs/assets/config.json");
+    // const json = await initConfig("tmp/config.json");
     logger.info(json);
 
     const db = new DatabaseDAO();
+    const dbMapper = new Map<string, number>();
 
-    for (const task of Object.values(config.tasks)) {
+    for (const [taskConfigId, task] of Object.entries(config.tasks)) {
         const device_metrics: string[] = [];
         if (task.device_metrics.cpu_usage)  device_metrics.push("cpu");
         if (task.device_metrics.interface_stats)  device_metrics.push("interface_stats");
@@ -138,10 +139,11 @@ export async function serverInit(options: CLIOptions) {
             )
         );
 
-        const taskId = await db.storeTask(newTask);
-        logger.info("New task created with id: " + taskId);
+        const taskDatabaseId = await db.storeTask(newTask);
+        dbMapper.set(taskConfigId, taskDatabaseId);
+        logger.info("New task created with id: " + taskDatabaseId);
 
-        const taskByID = await db.getTaskByID(taskId);
+        const taskByID = await db.getTaskByID(taskDatabaseId);
         if(taskByID)    logger.info("Retrieved Task by ID:", taskToString(taskByID));
     }
 
@@ -151,10 +153,10 @@ export async function serverInit(options: CLIOptions) {
     // Server setup
     const tcpCT = new ConnectionTarget(host, port);
     logger.info("TCP Target:", tcpCT.qualifiedName);
-    const tcpServer = new TCPServer();
+    const tcpServer = new TCPServer(dbMapper);
     tcpServer.listen(tcpCT);
 
-    const udpServer = new UDPServer(db);
+    const udpServer = new UDPServer(db, dbMapper);
     udpServer.listen(port + 1);
 }
 
