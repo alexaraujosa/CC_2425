@@ -321,8 +321,12 @@ class ECDHE {
      * @returns The session id that identifies this connection.
      */
     public generateSessionId(salt?: Buffer): Buffer {
-        const trueSalt = salt ?? this.lastSalt ?? crypto.randomBytes(16);
-        return Buffer.from(crypto.hkdfSync(HASH_ALGO, this._secret!, trueSalt, "session-id", HASH_LEN))
+        if (this.initialized) {
+            const trueSalt = salt ?? this.lastSalt ?? crypto.randomBytes(16);
+            return Buffer.from(crypto.hkdfSync(HASH_ALGO, this._secret!, trueSalt, "session-id", HASH_LEN));
+        } else {
+            return crypto.randomBytes(HASH_LEN);
+        }
     }
 
     /**
@@ -417,7 +421,7 @@ class ECDHE {
     }
 
     /**
-     * Encrypts a given message with the public key of this ECDHE instance.
+     * Encrypts a given message with the session key of this ECDHE instance.
      * The Intialization Vector doubles as a nonce for the message.
      * 
      * **NOTE:** This instance must be initialized with {@link link|ECDHE#link} before it can be used.
@@ -445,7 +449,7 @@ class ECDHE {
     }
 
     /**
-     * Decrypts a given encrypted message with the private key of this ECDHE instance.
+     * Decrypts a given encrypted message with the session key of this ECDHE instance.
      * 
      * **NOTE:** This instance must be initialized with {@link link|ECDHE#link} before it can be used.
      *
@@ -454,6 +458,56 @@ class ECDHE {
      * @throws {Error} if this instance is not initialized or an error occured while computing the cypher.
      */
     public decrypt(message: EncryptedMessage | Buffer): Buffer {
+        if (!this.initialized) throw new Error("ECDHE instance is not initialized.");
+
+        const enc = message instanceof Buffer ? ECDHE.deserializeEncryptedMessage(message) : message;
+
+        const decipher = crypto.createDecipheriv(ENC_ALGO, this.sessionKey, enc.iv);
+        decipher.setAuthTag(enc.authTag);
+
+        const decrypted = decipher.update(enc.content);
+        const final = Buffer.concat([decrypted, decipher.final()]);
+
+        return final;
+    }
+
+    /**
+     * Envelops a given message with the challenge key of this ECDHE instance.
+     * The Intialization Vector doubles as a nonce for the message.
+     * 
+     * It is meant to be used to protect the payload and part of the header of a given packet to increase the security of
+     * the connection.
+     * 
+     * **NOTE:** This instance must be initialized with {@link link|ECDHE#link} before it can be used.
+     *
+     * @param content The content to envelope.
+     * @return {EncryptedMessage} An object containing the encrypted message.
+     * @throws {Error} if this instance is not initialized or an error occured while computing the cypher.
+     */
+    public envelope(content: Buffer): EncryptedMessage {
+        if (!this.initialized) throw new Error("ECDHE instance is not initialized.");
+
+        const iv = crypto.randomBytes(12);
+        const cipher = crypto.createCipheriv(ENC_ALGO, this.sessionKey, iv);
+
+        let encrypted: Buffer = cipher.update(content);
+
+        encrypted = Buffer.concat([encrypted, cipher.final()]);
+        const authTag = cipher.getAuthTag();
+
+        return { content: encrypted, iv: iv, authTag };
+    }
+
+    /**
+     * De.envelopes a given message envelope with the challenge key of this ECDHE instance.
+     * 
+     * **NOTE:** This instance must be initialized with {@link link|ECDHE#link} before it can be used.
+     *
+     * @param {EncryptedMessage} message The encrypted message to decrypt
+     * @return {string} A UTF-8 encoded string containing
+     * @throws {Error} if this instance is not initialized or an error occured while computing the cypher.
+     */
+    public deenvelope(message: EncryptedMessage | Buffer): Buffer {
         if (!this.initialized) throw new Error("ECDHE instance is not initialized.");
 
         const enc = message instanceof Buffer ? ECDHE.deserializeEncryptedMessage(message) : message;
@@ -563,6 +617,9 @@ export {
     type EncryptedMessage,
     type Challenge,
     type ChallengeControl,
+
+    HASH_ALGO,
+    HASH_LEN,
 
     ECDHE
 };
