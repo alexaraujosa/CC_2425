@@ -367,10 +367,10 @@ function packDeviceMetrics(value: unknown): SPACKTaskPackedNullable {
 function unpackDeviceMetrics(value: SPACKTaskPackedValue): Record<string, unknown> {
     const unpacked: Record<string, unknown> = {};
 
-    if (value & 0b0001) unpacked[SPACKTaskKey.CPU_USAGE] = true;
-    if (value & 0b0010) unpacked[SPACKTaskKey.RAM_USAGE] = true;
-    if (value & 0b0100) unpacked[SPACKTaskKey.INTERFACE_STATS] = true;
-    if (value & 0b1000) unpacked[SPACKTaskKey.VOLUME] = true;
+    if ((value & 0b0001) === 0b0001) unpacked[SPACKTaskKey.CPU_USAGE] = true;
+    if ((value & 0b0010) === 0b0010) unpacked[SPACKTaskKey.RAM_USAGE] = true;
+    if ((value & 0b0100) === 0b0100) unpacked[SPACKTaskKey.INTERFACE_STATS] = true;
+    if ((value & 0b1000) === 0b1000) unpacked[SPACKTaskKey.VOLUME] = true;
 
     return unpacked;
 }
@@ -509,11 +509,11 @@ function unpackGlobalOptions(value: SPACKTaskPackedObject): Record<string, unkno
     if (ID(SPACKTaskKey.MODE) in value) {
         const mtByte = <number>value[ID(SPACKTaskKey.MODE)];
 
-        if (mtByte & 0b11) unpacked[SPACKTaskKey.MODE] = "server";
-        else if (mtByte & 0b10) unpacked[SPACKTaskKey.MODE] = "client";
+        if ((mtByte & 0b11) === 0b11) unpacked[SPACKTaskKey.MODE] = "server";
+        else if ((mtByte & 0b10) === 0b10) unpacked[SPACKTaskKey.MODE] = "client";
 
-        if (mtByte & 0b1100) unpacked[SPACKTaskKey.TRANSPORT] = "tcp";
-        else if (mtByte & 0b1000) unpacked[SPACKTaskKey.TRANSPORT] = "udp";
+        if ((mtByte & 0b1100) === 0b1100) unpacked[SPACKTaskKey.TRANSPORT] = "tcp";
+        else if ((mtByte & 0b1000) === 0b1000) unpacked[SPACKTaskKey.TRANSPORT] = "udp";
     }
 
     if (ID(SPACKTaskKey.TARGET) in value) {
@@ -1161,30 +1161,30 @@ export {
 
 
 
-// const { initConfig } = await import("../../server/config.js");
+const { initConfig } = await import("../../server/config.js");
 
-// const logger = getOrCreateGlobalLogger({ debug: true, printCallerFile: true });
-// if (!("config" in globalThis)) await initConfig("tmp/config.json");
-// logger.log("CONFIG:", config);
+const logger = getOrCreateGlobalLogger({ debug: true, printCallerFile: true });
+if (!("config" in globalThis)) await initConfig("tmp/config.json");
+logger.log("CONFIG:", config);
 
-// const pack = dropEmpty(<never>packTaskSchema(config.tasks["task1"]));
+const pack = dropEmpty(<never>packTaskSchema(config.tasks["task1"]));
 
-// logger.log("PACK:", pack);
+logger.log("PACK:", pack);
 
-// const ser = serializeSPACK(pack);
-// logger.log("SERIALIZED:", ser);
-// logger.log("SERIALIZED PASTE:", ser.toString("hex"));
-// logger.log("PACK SCHEMA:", pack);
+const ser = serializeSPACK(pack);
+logger.log("SERIALIZED:", ser);
+logger.log("SERIALIZED PASTE:", ser.toString("hex"));
+logger.log("PACK SCHEMA:", pack);
 
-// const deser = deserializeSPACK(ser);
-// logger.log("DESERIALIZED:", deser);
+const deser = deserializeSPACK(ser);
+logger.log("DESERIALIZED:", deser);
 
-// const unpacked = unpackTaskSchema(pack);
-// logger.log("UNPACK SCHEMA:", unpacked);
-// // logger.log("EXPANDED SCHEMA:", expandUnpackedTaskSchema(unpacked));
+const unpacked = unpackTaskSchema(pack);
+logger.log("UNPACK SCHEMA:", unpacked);
+// logger.log("EXPANDED SCHEMA:", expandUnpackedTaskSchema(unpacked));
 
-// const task: SPACKTask = <never>new _SPACKTask(unpacked);
-// logger.log("SPACKTASK:", task.link_metrics.bandwidth?.mode);
+const task: SPACKTask = <never>new _SPACKTask(unpacked);
+logger.log("SPACKTASK:", task.global_options);
 
 
 
