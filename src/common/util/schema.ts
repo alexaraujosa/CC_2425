@@ -226,6 +226,7 @@ const s = {
 } as const;
 
 export {
+    type SchemaValidator,
     type ExtractSchemaType as InferSchema,
     s
 };

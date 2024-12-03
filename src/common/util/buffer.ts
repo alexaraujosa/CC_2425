@@ -110,7 +110,7 @@ class BufferReader implements _BufferReaderIndex {
     }
 
     public eof() {
-        return this.offset === this.buffer.byteLength;
+        return this.offset >= this.buffer.byteLength;
     }
 
     public peek() {
