@@ -5,6 +5,9 @@
  * and schema data. It consists on the usage of a dictionary of well-known header values and per-value and multi-value
  * compression algorithms to reduce the memory used in transmitted packets while remaining lossless.
  * 
+ * **Author's note:** If you have to debug this thing, you better start praying, because the dark magic employed within
+ * this file is a blight upon god's green earth.
+ * 
  * @copyright Copyright (c) 2024 DarkenLM https://github.com/DarkenLM
  */
 
@@ -506,11 +509,11 @@ function unpackGlobalOptions(value: SPACKTaskPackedObject): Record<string, unkno
     if (ID(SPACKTaskKey.MODE) in value) {
         const mtByte = <number>value[ID(SPACKTaskKey.MODE)];
 
-        if (mtByte & 0b10) unpacked[SPACKTaskKey.MODE] = "client";
-        else if (mtByte & 0b11) unpacked[SPACKTaskKey.MODE] = "server";
+        if (mtByte & 0b11) unpacked[SPACKTaskKey.MODE] = "server";
+        else if (mtByte & 0b10) unpacked[SPACKTaskKey.MODE] = "client";
 
-        if (mtByte & 0b1000) unpacked[SPACKTaskKey.TRANSPORT] = "udp";
-        else if (mtByte & 0b1100) unpacked[SPACKTaskKey.TRANSPORT] = "tcp";
+        if (mtByte & 0b1100) unpacked[SPACKTaskKey.TRANSPORT] = "tcp";
+        else if (mtByte & 0b1000) unpacked[SPACKTaskKey.TRANSPORT] = "udp";
     }
 
     if (ID(SPACKTaskKey.TARGET) in value) {
@@ -922,7 +925,7 @@ function deserializeSPACK(ser: Buffer | BufferReader): SPACKPacked {
 //#endregion ============== Task Schema ==============
 
 //#region ============== Metric Schema ==============
-interface TaskMetric {
+interface SPACKTaskMetric {
     device_metrics?: {
         cpu_usage?: number,
         ram_usage?: number,
@@ -1015,7 +1018,7 @@ const TASK_METRIC_SCHEMA = {
 //     return packed;
 // }
 
-function serializedTaskMetric(metric: TaskMetric, task: Partial<Task>) {
+function serializedTaskMetric(metric: SPACKTaskMetric, task: Partial<Task>): Buffer {
     const logger = getOrCreateGlobalLogger();
     // const packed: Record<number, unknown> = {
     //     //@ts-expect-error Hidden property, used internally.
@@ -1064,13 +1067,13 @@ function serializedTaskMetric(metric: TaskMetric, task: Partial<Task>) {
         }
     }
 
-    if ("link_metrics" in metric) {
-        if (!("link_metrics" in task) || !task.link_metrics) 
-            throw new SPACKError(`Metric packing error: Key not in schema: 'link_metrics'.`);
+    if ("link_metrics" in task) {
+        if (!("link_metrics" in metric)) 
+            throw new SPACKError(`Metric packing error: Key missing: 'link_metrics'.`);
 
-        for (const key in metric.link_metrics) {
-            if (!(key in task.link_metrics)) 
-                throw new SPACKError(`Metric packing error: Key not in schema: 'link_metrics.${key}'.`);
+        for (const key in metric.link_metrics!) {
+            if (!(key in task.link_metrics!)) 
+                logger.warn(`Metric packing warning: Key not in schema: 'link_metrics.${key}'.`);
         }
 
         for (const key in task.link_metrics) {
@@ -1093,6 +1096,41 @@ function serializedTaskMetric(metric: TaskMetric, task: Partial<Task>) {
 
     return writer.finish();
 }
+
+function deserializeTaskMetric(metric: Buffer, task: Partial<Task>) {
+    // const logger = getOrCreateGlobalLogger();
+
+    const unpacked = {
+        device_metrics: <Record<string, unknown>>{},
+        link_metrics: <Record<string, unknown>>{}
+    };
+
+    const reader = new BufferReader(metric);
+
+    if ("device_metrics" in task) {
+        for (const key in task.device_metrics) {
+            if (SPACKTaskKeyMap[<SPACKTaskKey>key].packer === nilpack) {
+                unpacked["device_metrics"][key] = deserializeSPACK(reader);
+            } else {
+                // Edge-cases. Currently none.
+                unpacked["device_metrics"][key] = deserializeSPACK(reader);
+            }
+        }
+    }
+
+    if ("link_metrics" in task) {
+        for (const key in task.link_metrics) {
+            if (SPACKTaskKeyMap[<SPACKTaskKey>key].packer === nilpack) {
+                unpacked["link_metrics"][key] = deserializeSPACK(reader);
+            } else {
+                // Edge-cases. Currently none.
+                unpacked["link_metrics"][key] = deserializeSPACK(reader);
+            }
+        }
+    }
+
+    return unpacked;
+}
 //#endregion ============== Metric Schema ==============
 
 //#region ============== Type Assertions ==============
@@ -1106,6 +1144,7 @@ export {
     type SPACKTaskCollectionPacked,
     type SPACKPacked,
     type _SPACKTask,
+    type SPACKTaskMetric,
     SPACKTask,
 
     packTaskSchema,
@@ -1115,16 +1154,20 @@ export {
     serializeSPACK,
     deserializeSPACK,
     serializedTaskMetric,
+    deserializeTaskMetric,
 
     isSPACKTaskCollection
 };
-// ;(() => getOrCreateGlobalLogger)();
-// ;(() => initConfig)();
+
+
+
+// const { initConfig } = await import("../../server/config.js");
+
 // const logger = getOrCreateGlobalLogger({ debug: true, printCallerFile: true });
 // if (!("config" in globalThis)) await initConfig("tmp/config.json");
 // logger.log("CONFIG:", config);
 
-// const pack = dropEmpty(<never>packTaskSchema(config.tasks["task3"]));
+// const pack = dropEmpty(<never>packTaskSchema(config.tasks["task1"]));
 
 // logger.log("PACK:", pack);
 
@@ -1138,10 +1181,10 @@ export {
 
 // const unpacked = unpackTaskSchema(pack);
 // logger.log("UNPACK SCHEMA:", unpacked);
-// logger.log("EXPANDED SCHEMA:", expandUnpackedTaskSchema(unpacked));
+// // logger.log("EXPANDED SCHEMA:", expandUnpackedTaskSchema(unpacked));
 
 // const task: SPACKTask = <never>new _SPACKTask(unpacked);
-// logger.log("SPACKTASK:", task.link_metrics.latency?.counter);
+// logger.log("SPACKTASK:", task.link_metrics.bandwidth?.mode);
 
 
 
@@ -1173,9 +1216,20 @@ export {
 //             eth1: 5678
 //         },
 //         volume: 10
+//     },
+//     link_metrics: {
+//         bandwidth: 123,
+//         jitter: 456,
+//         packet_loss: 789,
+//         latency: 147
 //     }
 // }, ntasks.task1.getUnpacked());
 // logger.log("METRIC:", metric);
+
+// const demetric = deserializeTaskMetric(ntasks.task1.getUnpacked(), metric);
+// logger.log("DEMETRIC:", demetric);
+
+// // logger.log("DEMETRIC:", deserializeSPACK(metric));
 
 // // const serMetric = serializeSPACK(<never>metric);
 // // logger.log("SERIALIZED METRIC:", serMetric);
