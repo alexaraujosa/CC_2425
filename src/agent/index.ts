@@ -56,8 +56,8 @@ export async function agentInit(options: CLIOptions) {
     // let nt = new NetTask(1, 0, 0, 1, 5);
     // let nt2 = new NetTask(2, 0, 0, 1, 10);
 
-    // udpClient.send(nt.makeNetTaskDatagram());
-    // udpClient.send(nt2.makeNetTaskDatagram());
+    // udpClient.send(nt.serializeHeader());
+    // udpClient.send(nt2.serializeHeader());
 
 }
 
