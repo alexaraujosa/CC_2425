@@ -321,7 +321,7 @@ function transformConfig(config: RawConfig): Config {
                             : undefined,
                     }),
                     link_metrics: task.link_metrics
-                        ? {
+                        ? cleanUndefined({
                             bandwidth: task.link_metrics.bandwidth
                                 ? isEmpty(task.link_metrics.bandwidth)
                                     ? {}
@@ -334,7 +334,7 @@ function transformConfig(config: RawConfig): Config {
                                             ? parseStringInterval(task.link_metrics.bandwidth.interval)
                                             : undefined,
                                     })
-                                : {},
+                                : undefined,
                             jitter: task.link_metrics.jitter
                                 ? isEmpty(task.link_metrics.jitter)
                                     ? {}
@@ -347,7 +347,7 @@ function transformConfig(config: RawConfig): Config {
                                             ? parseStringInterval(task.link_metrics.jitter.interval)
                                             : undefined,
                                     })
-                                : {},
+                                : undefined,
                             packet_loss: task.link_metrics.packet_loss
                                 ? isEmpty(task.link_metrics.packet_loss)
                                     ? {}
@@ -360,7 +360,7 @@ function transformConfig(config: RawConfig): Config {
                                             ? parseStringInterval(task.link_metrics.packet_loss.interval)
                                             : undefined,
                                     })
-                                : {},
+                                : undefined,
                             latency: task.link_metrics.latency
                                 ? isEmpty(task.link_metrics.latency)
                                     ? {}
@@ -370,8 +370,8 @@ function transformConfig(config: RawConfig): Config {
                                             ? parseStringInterval(task.link_metrics.latency.interval)
                                             : undefined,
                                     })
-                                : {},
-                        }
+                                : undefined,
+                        })
                         : {},
                     alert_conditions: cleanUndefined({
                         ...task.alert_conditions,
