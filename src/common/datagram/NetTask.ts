@@ -18,6 +18,8 @@ interface NetTaskPublicHeader {
     cryptoMark: Buffer,
     sessionId: Buffer,
     payloadSize: number
+    moreFragments: boolean,
+    offset: number
 };
 //#endregion ============== Types ==============
 
@@ -28,6 +30,7 @@ const NET_TASK_CRYPTO    = Buffer.from("CC", "utf8");
 const NET_TASK_NOCRYPTO  = Buffer.from("NC", "utf8");
 
 enum NetTaskDatagramType {
+    BODYLESS,
     //#region ------- REGISTER PROCESS -------
     REQUEST_REGISTER,
     REGISTER_CHALLENGE,
@@ -50,8 +53,10 @@ class NetTask {
     protected cryptoMark: Buffer;
     protected version: number;
     protected sequenceNumber: number;
-    protected fragmented: boolean;
+    protected moreFragments: boolean;
+    protected offset: number;
     protected acknowledgementNumber: number;
+    protected nacknowledgementNumber: number;
     protected type: NetTaskDatagramType;
     protected payloadSize: number;
     protected logger!: DefaultLogger;
@@ -61,7 +66,9 @@ class NetTask {
         cryptoMark: Buffer,
         sequenceNumber: number,
         acknowledgementNumber: number,
-        fragmented: boolean,
+        nacknowledgementNumber: number,
+        moreFragments: boolean,
+        offset: number,
         type: NetTaskDatagramType,
         payloadSize: number
     ) {
@@ -70,7 +77,9 @@ class NetTask {
         this.version = NET_TASK_VERSION;
         this.sequenceNumber = sequenceNumber;
         this.acknowledgementNumber = acknowledgementNumber;
-        this.fragmented = fragmented;
+        this.nacknowledgementNumber = nacknowledgementNumber;
+        this.moreFragments = moreFragments;
+        this.offset = offset;
         this.type = type;
         this.payloadSize = payloadSize;
 
@@ -87,7 +96,9 @@ class NetTask {
     public getVersion(): number { return this.version; }
     public getSequenceNumber(): number { return this.sequenceNumber; }
     public getAcknowledgementNumber(): number { return this.acknowledgementNumber; }
-    public getFragmentedFlag(): boolean { return this.fragmented; }
+    public getNAcknowledgementNumber(): number { return this.nacknowledgementNumber; }
+    public getMoreFragmentsFlag(): boolean { return this.moreFragments; }
+    public getOffset(): number { return this.offset; }
     public getType(): NetTaskDatagramType { return this.type; }
     public getPayloadSize(): number { return this.payloadSize; }
 
@@ -96,7 +107,7 @@ class NetTask {
         //         "  VERSION: " + this.version + "\n" +
         //         "  SEQUENCE_NUMBER: " + this.sequenceNumber + "\n" +
         //         "  ACKNOWLEDGEMENT_NUMBER: " + this.acknowledgementNumber + "\n" +
-        //         "  IS_FRAGMENTED: " + this.fragmented + "\n" +
+        //         "  HAS_MORE_FRAGMENYS: " + this.moreFragments + "\n" +
         //         "  TYPE: " + this.type + "\n" +
         //         "  PAYLOAD_SIZE: " + this.payloadSize + "\n";
         return dedent`"
@@ -106,7 +117,9 @@ class NetTask {
                 - VERSION: ${this.version}
                 - SEQUENCE_NUMBER: ${this.sequenceNumber}
                 - ACKNOWLEDGEMENT_NUMBER: ${this.acknowledgementNumber}
-                - IS_FRAGMENTED: ${this.fragmented}
+                - N_ACKNOWLEDGEMENT_NUMBER: ${this.nacknowledgementNumber}
+                - HAS_MORE_FRAGMENTS: ${this.moreFragments}
+                - OFFSET: ${this.offset}
                 - TYPE: ${this.type}
                 - PAYLOAD_SIZE: ${this.payloadSize}
         `;
@@ -146,11 +159,11 @@ class NetTask {
 
     //     const sequenceNumber = reader.readUInt32();
     //     const acknowledgementNumber = reader.readUInt32();
-    //     const fragmentedBool = reader.readInt8();
+    //     const MoreFragmentsBool = reader.readInt8();
     //     const type = reader.readUInt32();
     //     const payloadSize = reader.readUInt32();
 
-    //     return new NetTask(sequenceNumber, acknowledgementNumber, !!fragmentedBool, type, payloadSize);
+    //     return new NetTask(sequenceNumber, acknowledgementNumber, !!moreFragmentsBool, type, payloadSize);
     // }
 
     // /**
@@ -162,7 +175,7 @@ class NetTask {
     //     writer.writeUInt32(this.version);
     //     writer.writeUInt32(this.sequenceNumber);
     //     writer.writeUInt32(this.acknowledgementNumber);
-    //     writer.writeUInt8(+this.fragmented);
+    //     writer.writeUInt8(+this.moreFragments);
     //     writer.writeUInt32(this.type);
     //     writer.writeUInt32(this.payloadSize);
 
@@ -175,6 +188,8 @@ class NetTask {
         writer.write(this.sessionId);
         writer.write(this.cryptoMark);
         writer.writeUInt32(this.payloadSize);
+        writer.writeUInt8(+this.moreFragments);
+        writer.writeUInt32(this.offset);
 
         return writer.finish();
     }
@@ -185,7 +200,7 @@ class NetTask {
         writer.writeUInt32(this.version);
         writer.writeUInt32(this.sequenceNumber);
         writer.writeUInt32(this.acknowledgementNumber);
-        writer.writeUInt8(+this.fragmented);
+        writer.writeUInt32(this.nacknowledgementNumber);
         writer.writeUInt32(this.type); 
 
         return writer.finish();
@@ -200,8 +215,10 @@ class NetTask {
         }
 
         const payloadSize = reader.readUInt32();
+        const moreFragments = reader.readUInt8();
+        const offset = reader.readUInt32();
 
-        return { sessionId, cryptoMark, payloadSize };
+        return { sessionId, cryptoMark, payloadSize, moreFragments: !!moreFragments, offset };
     }
 
     public static deserializePrivateHeader(reader: BufferReader, partialHeader: NetTaskPublicHeader) {
@@ -212,18 +229,54 @@ class NetTask {
 
         const sequenceNumber = reader.readUInt32();
         const acknowledgementNumber = reader.readUInt32();
-        const fragmentedBool = reader.readInt8();
+        const nacknowledgementNumber = reader.readUInt32();
         const type = reader.readUInt32();
 
         return new NetTask(
             partialHeader.sessionId, 
             partialHeader.cryptoMark, 
-            sequenceNumber, 
+            sequenceNumber,
             acknowledgementNumber, 
-            !!fragmentedBool, 
+            nacknowledgementNumber, 
+            partialHeader.moreFragments, 
+            partialHeader.offset,
             type, 
             partialHeader.payloadSize
         );
+    }
+}
+
+class NetTaskBodyless extends NetTask {
+    public constructor(
+        sessionId: Buffer,
+        sequenceNumber: number,
+        acknowledgementNumber: number,
+        nacknowledgementNumber: number 
+    ) {
+        super(
+            sessionId,
+            NET_TASK_NOCRYPTO,
+            sequenceNumber,
+            acknowledgementNumber,
+            nacknowledgementNumber,
+            false,
+            0,
+            NetTaskDatagramType.BODYLESS,
+            0
+        );
+    }
+
+    public serialize() {
+        const privHeader = super.serializePrivateHeader();
+        this.payloadSize = privHeader.byteLength;
+
+        const pubHeader = super.serializePublicHeader();
+        const newWriter = new BufferWriter();
+
+        newWriter.write(pubHeader);
+        newWriter.write(privHeader);
+
+        return newWriter.finish();
     }
 }
 
@@ -231,14 +284,17 @@ class NetTaskRejected extends NetTask {
     public constructor(
         sessionId: Buffer,
         sequenceNumber: number,
-        acknowledgementNumber: number
+        acknowledgementNumber: number,
+        nacknowledgementNumber: number
     ) {
         super(
             sessionId,
             NET_TASK_NOCRYPTO,
             sequenceNumber,
             acknowledgementNumber,
+            nacknowledgementNumber,
             false,
+            0,
             NetTaskDatagramType.CONNECTION_REJECTED,
             0
         );
@@ -266,7 +322,9 @@ class NetTaskRegister extends NetTask {
         sessionId: Buffer,
         sequenceNumber: number,
         acknowledgementNumber: number,
-        fragmented: boolean,
+        nacknowledgementNumber: number,
+        moreFragments: boolean,
+        offset: number,
         publicKey: Buffer
     ) {
         super(
@@ -274,7 +332,9 @@ class NetTaskRegister extends NetTask {
             NET_TASK_NOCRYPTO,
             sequenceNumber, 
             acknowledgementNumber,
-            fragmented,
+            nacknowledgementNumber,
+            moreFragments,
+            offset,
             NetTaskDatagramType.REQUEST_REGISTER, 
             0
         );
@@ -317,7 +377,9 @@ class NetTaskRegister extends NetTask {
             dg.getSessionId(),
             dg.getSequenceNumber(), 
             dg.getAcknowledgementNumber(),
-            dg.getFragmentedFlag(), 
+            dg.getNAcknowledgementNumber(),
+            dg.getMoreFragmentsFlag(), 
+            dg.getOffset(), 
             publicKey
         );
     }
@@ -332,7 +394,9 @@ class NetTaskRegisterChallenge extends NetTask {
         sessionId: Buffer,
         sequenceNumber: number,
         acknowledgementNumber: number,
-        fragmented: boolean,
+        nacknowledgementNumber: number,
+        moreFragments: boolean,
+        offset: number,
         publicKey: Buffer,
         challenge: Buffer,
         salt: Buffer
@@ -342,7 +406,9 @@ class NetTaskRegisterChallenge extends NetTask {
             NET_TASK_NOCRYPTO,
             sequenceNumber,
             acknowledgementNumber,
-            fragmented,
+            nacknowledgementNumber,
+            moreFragments,
+            offset,
             NetTaskDatagramType.REGISTER_CHALLENGE, 
             0
         );
@@ -394,7 +460,9 @@ class NetTaskRegisterChallenge extends NetTask {
             dg.getSessionId(),
             dg.getSequenceNumber(), 
             dg.getAcknowledgementNumber(),
-            dg.getFragmentedFlag(), 
+            dg.getNAcknowledgementNumber(),
+            dg.getMoreFragmentsFlag(),
+            dg.getOffset(), 
             publicKey, 
             challenge,
             salt
@@ -410,7 +478,7 @@ class NetTaskRegisterChallenge extends NetTask {
 //         sessionId: Buffer,
 //         sequenceNumber: number,
 //         acknowledgementNumber: number,
-//         fragmented: boolean,
+//         moreFragments: boolean,
 //         payloadSize: number,
 //         challenge: Buffer
 //     ) {
@@ -419,7 +487,7 @@ class NetTaskRegisterChallenge extends NetTask {
 //             NET_TASK_CRYPTO,
 //             sequenceNumber,
 //             acknowledgementNumber,
-//             fragmented,
+//             moreFragments,
 //             NetTaskDatagramType.REGISTER_CHALLENGE2, 
 //             payloadSize
 //         );
@@ -487,7 +555,7 @@ class NetTaskRegisterChallenge extends NetTask {
 //             dg.getSessionId(),
 //             dg.getSequenceNumber(), 
 //             dg.getAcknowledgementNumber(), 
-//             dg.getFragmentedFlag(),
+//             dg.getMoreFragmentsFlag(),
 //             dg.getPayloadSize(), 
 //             challenge
 //         );
@@ -501,7 +569,9 @@ class NetTaskRegisterChallenge2 extends NetTask {
         sessionId: Buffer,
         sequenceNumber: number,
         acknowledgementNumber: number,
-        fragmented: boolean,
+        nacknowledgementNumber: number,
+        moreFragments: boolean,
+        offset: number,
         challenge: Buffer
     ) {
         super(
@@ -509,7 +579,9 @@ class NetTaskRegisterChallenge2 extends NetTask {
             NET_TASK_NOCRYPTO,
             sequenceNumber,
             acknowledgementNumber,
-            fragmented,
+            nacknowledgementNumber,
+            moreFragments,
+            offset,
             NetTaskDatagramType.REGISTER_CHALLENGE2, 
             0
         );
@@ -555,7 +627,9 @@ class NetTaskRegisterChallenge2 extends NetTask {
             dg.getSessionId(),
             dg.getSequenceNumber(), 
             dg.getAcknowledgementNumber(), 
-            dg.getFragmentedFlag(),
+            dg.getNAcknowledgementNumber(), 
+            dg.getMoreFragmentsFlag(),
+            dg.getOffset(),
             challenge
         );
     }
@@ -571,7 +645,9 @@ class NetTaskPushSchemas extends NetTask {
         sessionId: Buffer,
         sequenceNumber: number,
         acknowledgementNumber: number,
-        fragmented: boolean,
+        nacknowledgementNumber: number,
+        moreFragments: boolean,
+        offset: number,
         spack: SPACKPacked | { [key: string]: SPACKTask; }
         // message: string
     ) {
@@ -580,7 +656,9 @@ class NetTaskPushSchemas extends NetTask {
             NET_TASK_CRYPTO, 
             sequenceNumber, 
             acknowledgementNumber, 
-            fragmented, 
+            nacknowledgementNumber, 
+            moreFragments, 
+            offset,
             NetTaskDatagramType.PUSH_SCHEMAS, 
             0
         );
@@ -680,7 +758,15 @@ class NetTaskPushSchemas extends NetTask {
             throw new Error(`[NT_PushSchemas] Malformed NetTaskPushSchemas packet: Malformed schema payload.`, { cause: e });
         }
 
-        return new NetTaskPushSchemas(dg.getSessionId(), 123123, 123123, true, tasks);
+        return new NetTaskPushSchemas(
+            dg.getSessionId(),
+            dg.getSequenceNumber(),
+            dg.getAcknowledgementNumber(), 
+            dg.getNAcknowledgementNumber(), 
+            dg.getMoreFragmentsFlag(), 
+            dg.getOffset(), 
+            tasks
+        );
     }
 }
 
@@ -694,7 +780,9 @@ class NetTaskMetric extends NetTask {
         sessionId: Buffer,
         sequenceNumber: number,
         acknowledgementNumber: number,
-        fragmented: boolean,
+        nacknowledgementNumber: number,
+        moreFragments: boolean,
+        offset: number,
         spack: SPACKTaskMetric,
         taskId: string,
         // Should be of type Task, but I don't want to import stuff from the server into common, 
@@ -705,8 +793,10 @@ class NetTaskMetric extends NetTask {
             sessionId, 
             NET_TASK_CRYPTO, 
             sequenceNumber, 
-            acknowledgementNumber, 
-            fragmented, 
+            acknowledgementNumber,
+            nacknowledgementNumber, 
+            moreFragments,
+            offset, 
             NetTaskDatagramType.SEND_METRICS, 
             0
         );
@@ -804,7 +894,9 @@ class NetTaskMetric extends NetTask {
             dg.getSessionId(), 
             dg.getSequenceNumber(), 
             dg.getAcknowledgementNumber(), 
-            true, 
+            dg.getNAcknowledgementNumber(), 
+            dg.getMoreFragmentsFlag(), 
+            dg.getOffset(),
             metric.metrics,
             metric.taskId,
             <never>(<Record<string, unknown>>configTasks)[<keyof typeof configTasks>metric.taskId]
@@ -820,5 +912,6 @@ export {
     NetTaskRegisterChallenge,
     NetTaskRegisterChallenge2,
     NetTaskPushSchemas,
-    NetTaskMetric
+    NetTaskMetric,
+    NetTaskBodyless
 };
