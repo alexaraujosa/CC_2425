@@ -1,5 +1,5 @@
 import crypto from "crypto";
-import { NetTask, NetTaskDatagramType, NetTaskRegister, NetTaskRegisterChallenge, NetTaskRegisterChallenge2, NetTaskPushSchemas, NetTaskRejected, NetTaskMetric } from "$common/datagram/NetTask.js";
+import { NetTask, NetTaskDatagramType, NetTaskRegister, NetTaskRegisterChallenge, NetTaskRegisterChallenge2, NetTaskPushSchemas, NetTaskRejected, NetTaskMetric, NetTaskBodyless } from "$common/datagram/NetTask.js";
 import { ConnectionTarget, ConnectionTargetLike, RemoteInfo } from "$common/protocol/connection.js";
 import { ChallengeControl, ECDHE } from "$common/protocol/ecdhe.js";
 import { UDPConnection } from "$common/protocol/udp.js";
@@ -8,13 +8,14 @@ import { createDevice, deviceToString } from "$common/db/interfaces/IDevice.js";
 import { DatabaseDAO } from "$common/db/databaseDAO.js";
 import { packTaskSchemas } from "$common/datagram/spack.js";
 import { createMetrics } from "$common/db/interfaces/IMetrics.js";
+import { ConnectionRejected, DuplicatedPackageError, FlowControl, MaxRetransmissionsReachedError, OutOfOrderPackageError, ReachedMaxWindowError } from "$common/protocol/flowControl.js";
 
 /**
  * This class is meant to be used as a base for UDP Server implementations.
  */
 // TODO: Merge into one class. Make listen consistent with TCP.
 class UDPServer extends UDPConnection {
-    private clients: Map<string, { ecdhe: ECDHE, salt: Buffer, challenge?: ChallengeControl }>;
+    private clients: Map<string, {flowControl: FlowControl, ecdhe: ECDHE, salt: Buffer, challenge?: ChallengeControl }>;
     private db: DatabaseDAO;
     private devicesNames: Record<string, string>;
     private sessionIds: Record<string, Buffer>;
@@ -52,8 +53,42 @@ class UDPServer extends UDPConnection {
      * Sends a payload
      * @param payload 
      */
-    public send(payload: Buffer, target: ConnectionTargetLike) {
-        this.socket.send(payload, target.port, target.address);
+    public send(flowControl: FlowControl, dg?: NetTask, target?: ConnectionTargetLike) {
+        if(!target){
+            throw new Error(`You cant send a packet to the void...`);
+        }
+
+        try{
+            const dgToSend = flowControl.controlledSend(dg);
+            
+            if(dgToSend.getSequenceNumber() >= flowControl.getLastSeq()){
+                flowControl.readyToSend(dgToSend);
+            }
+
+            this.logger.pLog(`---------- PACOTE ENVIADO ----------`);
+            this.logger.pLog(dgToSend.toString());
+            this.logger.pLog(`-------------------------------------`); 
+            
+            if(dgToSend.getType() === NetTaskDatagramType.BODYLESS){
+                //@ts-expect-error STFU Typescript.
+                this.socket.send(dgToSend.serialize(), target.port, target.address);
+                return;
+            }
+            //@ts-expect-error STFU Typescript.
+            this.socket.send(dgToSend.serialize(), target.port, target.address);
+            
+            flowControl.startTimer(dgToSend, (seq) => {
+                this.handleTimeout(flowControl, seq, target);
+            }); 
+        } catch (error) {
+            if ( error instanceof ReachedMaxWindowError)
+                return;
+            if ( error instanceof MaxRetransmissionsReachedError){
+                this.logger.warn("Agent is not responding to meeee...");
+                this.socket.close();
+                return;
+            }
+        }
     }
 
     public async onMessage(msg: Buffer, rinfo: RemoteInfo): Promise<void> {
@@ -109,6 +144,41 @@ class UDPServer extends UDPConnection {
                     _nt = nt;
 
                     this.logger.log(`UDP Server header:`, nt);
+                    
+                    const client = this.clients.get(pHeader.sessionId.toString("hex"));
+                    if(client){
+                        try {
+                            //Fragmentando tenho de criar o pacote
+                            
+                            client.flowControl.evaluateConnection(_nt);
+                        } catch (error) {
+                            if (error instanceof ConnectionRejected) {
+                                this.logger.error(error.message);
+                                break;
+                            }
+                            if (error instanceof DuplicatedPackageError) {
+                                this.logger.error("Duplicated package:", error.message);
+                                break;
+                            } else if (error instanceof OutOfOrderPackageError) {
+                                this.logger.error("Out-of-order package:", error.message);
+                                const retransmission = new NetTaskBodyless(
+                                    pHeader.sessionId,
+                                    client.flowControl.getLastSeq(),
+                                    0,
+                                    client.flowControl.getLastAck() + 1,
+                                );
+                                this.send(client.flowControl, retransmission, rinfo);
+                                break;
+                            } else {
+                                this.logger.error("An unexpected error occurred:", error);
+                                break;
+                            }
+                        }
+                    }
+
+                    this.logger.pLog(`---------- PACOTE RECEBIDO ----------`);
+                    this.logger.pLog(nt.toString());
+                    this.logger.pLog(`-------------------------------------`); 
 
                     switch (nt.getType()) {
 
@@ -123,6 +193,8 @@ class UDPServer extends UDPConnection {
                             const registerDg = NetTaskRegister.deserialize(payloadReader, nt);
 
                             this.logger.log("[SERVER] [REQUEST_REGISTER] Req:", registerDg);
+
+                            const flowControl = new FlowControl();
 
                             let exists = false;
                             for (const device of Object.values(config.devices)) {
@@ -141,31 +213,42 @@ class UDPServer extends UDPConnection {
                                 // );
                                 const rejectedDg = new NetTaskRejected(
                                     nt.getSessionId(),
-                                    123123,
-                                    123123
+                                    0,
+                                    0,
+                                    0
                                 );
-                                this.send(rejectedDg.serialize(), rinfo);
+                                this.send(flowControl, rejectedDg, rinfo);
                                 break;
                             }
 
                             const ecdhe = new ECDHE("secp128r1");
                             const salt = ecdhe.link(registerDg.publicKey);
                             const challenge = ecdhe.generateChallenge(crypto.randomBytes(12));
+
+                            this.clients.set(nt.getSessionId().toString("hex"), { flowControl, ecdhe, salt, challenge: challenge });
             
+                            const client = this.clients.get(nt.getSessionId().toString("hex"));
+
+                            if(!client){
+                                throw new Error(`Agent not found!`);
+                            }
+
                             const regChallengeDg = new NetTaskRegisterChallenge(
                                 nt.getSessionId(),
-                                100000, 
-                                111110,
+                                client.flowControl.getLastSeq(), 
+                                1,
+                                0,
                                 false,
+                                0,
                                 ecdhe.publicKey, 
                                 ECDHE.serializeChallenge(challenge.challenge),
                                 salt
                             );
+                            client.flowControl.setLastAck(1);
 
                             this.logger.log("[SERVER] Second register phase:", regChallengeDg);
                             // this.clients.set(ConnectionTarget.toQualifiedName(rinfo), { ecdhe, salt, challenge: challenge });
-                            this.clients.set(nt.getSessionId().toString("hex"), { ecdhe, salt, challenge: challenge });
-                            this.send(regChallengeDg.serialize(), rinfo);
+                            this.send(client.flowControl, regChallengeDg, rinfo);
                             break;
                         }
 
@@ -180,6 +263,10 @@ class UDPServer extends UDPConnection {
 
                             // const client = this.clients.get(ConnectionTarget.toQualifiedName(rinfo));
                             const client = this.clients.get(nt.getSessionId().toString("hex"));
+                            if(!client){
+                                throw new Error(`Agent not found!`);
+                            }
+
                             this.logger.log("[SERVER] Start fourth register phase:", client);
                             const confirm = client?.ecdhe.confirmChallenge(ECDHE.deserializeChallenge(regChallenge2Dg.challenge), client.challenge!);
                             
@@ -191,10 +278,11 @@ class UDPServer extends UDPConnection {
 
                                 const rejectedDg = new NetTaskRejected(
                                     nt.getSessionId(),
-                                    111110,
-                                    111111
+                                    0,
+                                    0,
+                                    0,
                                 );
-                                this.send(rejectedDg.serialize(), rinfo);
+                                this.send(new FlowControl(), rejectedDg, rinfo);
                                 break;
                             }
 
@@ -246,12 +334,14 @@ class UDPServer extends UDPConnection {
                             const spack = packTaskSchemas(tasks);
                             const requestTaskDg = new NetTaskPushSchemas(
                                 nt.getSessionId(),
-                                111110, 
-                                122220, 
-                                false, 
+                                client.flowControl.getLastSeq(), 
+                                client.flowControl.getLastAck(), 
+                                0, 
+                                false,
+                                0, 
                                 spack
                             ).link(client!.ecdhe);
-                            this.send(requestTaskDg.serialize(), rinfo);
+                            this.send(client.flowControl, requestTaskDg, rinfo);
                             break;
                         }
                         case NetTaskDatagramType.PUSH_SCHEMAS: {
@@ -260,9 +350,33 @@ class UDPServer extends UDPConnection {
                         }
                         case NetTaskDatagramType.SEND_METRICS: {
                             const client = this.clients.get(nt.getSessionId().toString("hex"));
+                            if(!client){
+                                throw new Error(`Agent not found!`);
+                            }
                             const metricsDg = NetTaskMetric.deserialize(payloadReader, client!.ecdhe!, nt, config.tasks);
 
+                            const ack = new NetTaskBodyless(
+                                nt.getSessionId(),
+                                client.flowControl.getLastSeq(),
+                                client.flowControl.getLastAck(),
+                                0,
+                            );
+                            this.send(client.flowControl, ack, rinfo);
+
                             this.logger.log("[SERVER] Got metrics:", metricsDg);
+                            break;
+                        }
+                        case NetTaskDatagramType.BODYLESS: {
+                            const client = this.clients.get(nt.getSessionId().toString("hex"));
+                            if(!client){
+                                throw new Error(`Agent not found!`);
+                            }
+                            if(nt.getNAcknowledgementNumber() != 0){
+                                this.logger.warn("Pedido de retransmissão do pacote com seq:", nt.getNAcknowledgementNumber());
+                                const dg = client.flowControl.getDgFromRecoveryList(nt.getNAcknowledgementNumber());
+                                this.send(client.flowControl, dg, rinfo);
+                                return;
+                            }
                             break;
                         }
                         default: {
@@ -281,15 +395,31 @@ class UDPServer extends UDPConnection {
                 if (sessionId) {
                     const rejectedDg = new NetTaskRejected(
                         sessionId,
-                        100000,
-                        133331
+                        0,
+                        0,
+                        0
                     );
-                    this.send(rejectedDg.serialize(), rinfo);
+                    this.send(new FlowControl(), rejectedDg, rinfo);
                 } else {
                     this.logger.warn("[AGENT] Packet processing failed before client recognition. Silently ignoring.");
                 }
                 _nt = undefined;
             }
+        }
+    }
+
+    private handleTimeout(flowControl: FlowControl, seqNumber: number, target: ConnectionTargetLike) {
+        try {
+            const dg = flowControl.getDgFromRecoveryList(seqNumber);
+            this.logger.warn(`Timeout... retransmitting package ${seqNumber}`); 
+
+            this.send(flowControl, dg, target);
+    
+            flowControl.startTimer(dg, (seq) => {
+                this.handleTimeout(flowControl, seq, target);
+            });
+        } catch (error) {
+            this.logger.error("Failed to retransmit package:", error);
         }
     }
 }

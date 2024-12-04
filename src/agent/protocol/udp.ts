@@ -5,14 +5,15 @@
  * @copyright Copyright (c) 2024 DarkenLM https://github.com/DarkenLM
  */
 
-import { NetTask, NetTaskDatagramType, NetTaskRegister, NetTaskRegisterChallenge, NetTaskRegisterChallenge2, NetTaskPushSchemas, NetTaskMetric } from "$common/datagram/NetTask.js";
+import { NetTask, NetTaskDatagramType, NetTaskRegister, NetTaskRegisterChallenge, NetTaskRegisterChallenge2, NetTaskPushSchemas, NetTaskMetric, NetTaskBodyless } from "$common/datagram/NetTask.js";
 import { ConnectionTarget } from "$common/protocol/connection.js";
 import { ECDHE } from "$common/protocol/ecdhe.js";
 import { UDPConnection } from "$common/protocol/udp.js";
 import { BufferReader } from "$common/util/buffer.js";
 import { RemoteInfo } from "dgram";
-import { executeIPerfServer, executePing } from "./executor.js";
+//import { executeIPerfServer, executePing } from "./executor.js";
 import { SPACKTask } from "$common/datagram/spack.js";
+import { ConnectionRejected, DuplicatedPackageError, FlowControl, MaxRetransmissionsReachedError, OutOfOrderPackageError, ReachedMaxWindowError } from "$common/protocol/flowControl.js";
 
 /**
  * A UDP Client with integrated events and asynchronous flow control.
@@ -24,12 +25,14 @@ import { SPACKTask } from "$common/datagram/spack.js";
 class UDPClient extends UDPConnection {
     private target!: ConnectionTarget;
     private ecdhe: ECDHE;
+    private flowControl: FlowControl;
     // private challengeSalt!: Buffer;
 
     public constructor() {
         super();
 
         this.ecdhe = new ECDHE("secp128r1");
+        this.flowControl = new FlowControl();
     }
     
     public onError(err: Error): void {
@@ -70,7 +73,40 @@ class UDPClient extends UDPConnection {
 
                     const payloadReader = new BufferReader(payload);
                     const nt = NetTask.deserializePrivateHeader(payloadReader, pHeader);
+                    
                     this.logger.info("UDP Agent header:", nt);
+
+                    try {
+                        //Fragmentando tenho de criar o pacote
+                        
+                        this.flowControl.evaluateConnection(nt);
+                    } catch (error) {
+                        if (error instanceof ConnectionRejected) {
+                            this.logger.error("[AGENT] Connection rejected. Try again later.");
+                            break;
+                        }
+                        if (error instanceof DuplicatedPackageError) {
+                            this.logger.error("Duplicated package:", error.message);
+                            break;
+                        } else if (error instanceof OutOfOrderPackageError) {
+                            this.logger.error("Out-of-order package:", error.message);
+                            const retransmission = new NetTaskBodyless(
+                                pHeader.sessionId,
+                                this.flowControl.getLastSeq(),
+                                0,
+                                this.flowControl.getLastAck() + 1,
+                            );
+                            this.send(retransmission);
+                            break;
+                        } else {
+                            this.logger.error("An unexpected error occurred:", error);
+                            break;
+                        }
+                    }
+
+                    this.logger.pLog(`---------- PACOTE RECEBIDO ----------`);
+                    this.logger.pLog(nt.toString());
+                    this.logger.pLog(`-------------------------------------`); 
 
                     switch (nt.getType()) {
                         /**
@@ -90,14 +126,16 @@ class UDPClient extends UDPConnection {
 
                             const register2Dg = new NetTaskRegisterChallenge2(
                                 nt.getSessionId(),
-                                200000,
-                                211110,
+                                this.flowControl.getLastSeq(),
+                                this.flowControl.getLastAck(),
+                                0,
                                 false,
+                                0,
                                 ECDHE.serializeChallenge(confirm.challenge)
                             ).link(this.ecdhe);
 
                             this.logger.info("[AGENT] Third authentication phase:", register2Dg);
-                            this.send(register2Dg.serialize());
+                            this.send(register2Dg);
                             break;
                         }
                         case NetTaskDatagramType.CONNECTION_REJECTED: {
@@ -109,14 +147,24 @@ class UDPClient extends UDPConnection {
                             const nttttt = NetTaskPushSchemas.deserialize(payloadReader, this.ecdhe, nt);
                             const schemas = nttttt.getSchemas();
 
+                            const ack = new NetTaskBodyless(
+                                nttttt.getSessionId(),
+                                this.flowControl.getLastSeq(),
+                                this.flowControl.getLastAck(),
+                                0,
+                            );
+                            this.send(ack);
+
                             this.logger.log("SCHEMAS:", schemas);
                             nttttt.link(this.ecdhe).serialize();
 
                             const metric = new NetTaskMetric(
                                 nt.getSessionId(),
-                                300000,
-                                311110,
+                                this.flowControl.getLastSeq(),
+                                this.flowControl.getLastAck(),
+                                0,
                                 false,
+                                0,
                                 {
                                     device_metrics: {
                                         cpu_usage: 90,
@@ -137,13 +185,22 @@ class UDPClient extends UDPConnection {
                                 "task1",
                                 (<SPACKTask>schemas[<never>"task1"]).getUnpacked()
                             ).link(this.ecdhe);
-                            this.send(metric.serialize());
+                            this.send(metric);
 
                             this.logger.info("\n\nStaring to execute tasks: \n\n");
                             
-                            executePing("www.google.pt", 3, 1);
-                            executeIPerfServer(30, "tcp", 5);
+                            //executePing("www.google.pt", 3, 1);
+                            //executeIPerfServer(30, "tcp", 5);
 
+                            break;
+                        }
+                        case NetTaskDatagramType.BODYLESS: {
+                            if(nt.getNAcknowledgementNumber() != 0){
+                                this.logger.warn("Pedido de retransmissão do pacote com seq:", nt.getNAcknowledgementNumber());
+                                const dg = this.flowControl.getDgFromRecoveryList(nt.getNAcknowledgementNumber());
+                                this.send(dg);
+                                return;
+                            }
                             break;
                         }
                         default:{
@@ -163,8 +220,43 @@ class UDPClient extends UDPConnection {
      * Sends a payload to the target.
      * @param payload A Buffer containing the payload data.
      */
-    public send(payload: Buffer): void {
-        this.socket.send(payload, this.target.port, this.target.address);
+    public send(dg?: NetTask): void {
+        if(!this.target){
+            throw new Error(`You cant send a packet to the void...`);
+        }
+
+        try{
+            const dgToSend = this.flowControl.controlledSend(dg);
+            
+            if(dgToSend.getSequenceNumber() >= this.flowControl.getLastSeq()){
+                this.flowControl.readyToSend(dgToSend);
+            }
+
+            this.logger.pLog(`---------- PACOTE ENVIADO ----------`);
+            this.logger.pLog(dgToSend.toString());
+            this.logger.pLog(`-------------------------------------`); 
+            
+            if(dgToSend.getType() === NetTaskDatagramType.BODYLESS){
+                //@ts-expect-error STFU Typescript.
+                this.socket.send(dgToSend.serialize(), this.target.port, this.target.address);
+                return;
+            }
+            
+            //@ts-expect-error STFU Typescript.
+            this.socket.send(dgToSend.serialize(), this.target.port, this.target.address);
+            
+            this.flowControl.startTimer(dgToSend, (seq) => {
+                this.handleTimeout(seq);
+            }); 
+        } catch (error) {
+            if ( error instanceof ReachedMaxWindowError)
+                return;
+            if ( error instanceof MaxRetransmissionsReachedError){
+                this.logger.warn("Agent is not responding to meeee...");
+                this.socket.close();
+                return;
+            }
+        }
     }
 
     /**
@@ -173,19 +265,36 @@ class UDPClient extends UDPConnection {
      */
     public connect(target: ConnectionTarget) {
         this.target = target;
+        this.flowControl.setLastAck(0);
+        this.flowControl.setLastSeq(1);
 
         const connectionId = this.ecdhe.generateSessionId();
         
         /**
          * First phase of the Registration Process, where an Agent sends the Server his public key.
          */
-        const registerDg = new NetTaskRegister(connectionId, 123123, 123123, false, this.ecdhe.publicKey);
+        const registerDg = new NetTaskRegister(connectionId, this.flowControl.getLastSeq(), this.flowControl.getLastAck(), 0, false, 0, this.ecdhe.publicKey);
         this.logger.log("[AGENT] First phase auth:", registerDg);
-        this.send(registerDg.serialize());
+        this.send(registerDg);
     }
 
     public close() {
 
+    }
+
+    private handleTimeout(seqNumber: number) {
+        try {
+            const dg = this.flowControl.getDgFromRecoveryList(seqNumber);
+            this.logger.warn(`Timeout... retransmitting package ${seqNumber}`); 
+
+            this.send(dg);
+    
+            this.flowControl.startTimer(dg, (seq) => {
+                this.handleTimeout(seq);
+            });
+        } catch (error) {
+            this.logger.error("Failed to retransmit package:", error);
+        }
     }
 }
 
