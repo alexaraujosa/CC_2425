@@ -1,3 +1,4 @@
+import path from "path";
 import util from "util";
 import chalk from "chalk";
 import express from "express";
@@ -6,12 +7,15 @@ import { getCallerFilePathAndPosition } from "$common/util/getCaller.js";
 import { loggerFormatDate } from "$common/util/date.js";
 import webOptions, { WEB_LOGGER_LEVELS, WebLoggerInitArg } from "./webConfig.js";
 import { CLIOptions } from "../index.js";
+import { makeLocations } from "$common/util/paths.js";
 
 // Add Middleware imports here
 import loggerMiddleware from "./middlewares/logger.js";
 
 // Add Router imports here
 import mainRouter from "./routes/main.js";
+
+const { dirname: __dirname } = makeLocations(import.meta.url);
 
 function initWebServer(options: CLIOptions): express.Express {
     const logger = createLogger(WEB_LOGGER_LEVELS, { debug: options.debug, printCallerFile: options.debug });
@@ -47,6 +51,10 @@ function initWebServer(options: CLIOptions): express.Express {
 
     const app = express();
     app.use(express.urlencoded({ extended: true }), express.json());
+
+    logger.info(`Preparing static files from ${path.join(__dirname, "./public")}...`);
+    app.use("/public", express.static(path.join(__dirname, "./public")));
+    logger.success(`Successfully attached static files.`);
 
     // Add Middleware registrations here.
     app.use(loggerMiddleware);

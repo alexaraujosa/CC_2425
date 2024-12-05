@@ -1,10 +1,13 @@
 import { Levels, Logger } from "$common/util/logger.js";
+import { makeLocations } from "$common/util/paths.js";
 import chalk from "chalk";
 import express from "express";
+import path from "path";
 
 //#region ============== Types ==============
 interface Options {
-    logger: Logger<typeof WEB_LOGGER_LEVELS>
+    logger: Logger<typeof WEB_LOGGER_LEVELS>,
+    public: string
 }
 
 interface WebLoggerInitArg {
@@ -14,6 +17,8 @@ interface WebLoggerInitArg {
 //#endregion ============== Types ==============
 
 //#region ============== Constants ==============
+const { dirname: __dirname } = makeLocations(import.meta.url);
+
 const WEB_LOGGER_LEVELS = {
     log:    { name: "log", color: chalk.reset },
     success: { name: "success", color: chalk.green },
@@ -24,7 +29,8 @@ const WEB_LOGGER_LEVELS = {
 //#region ============== Constants ==============
 
 const options: Options = {
-    logger: <never>undefined
+    logger: <never>undefined,
+    public: path.join(__dirname, "./public")
 };
 
 
