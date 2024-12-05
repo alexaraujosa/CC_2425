@@ -28,6 +28,7 @@ const NET_TASK_VERSION = 1;
 const NET_TASK_SIGNATURE = Buffer.from("NTTK", "utf8");
 const NET_TASK_CRYPTO    = Buffer.from("CC", "utf8");
 const NET_TASK_NOCRYPTO  = Buffer.from("NC", "utf8");
+const NET_TASK_WAKE_PING = "PING";
 
 enum NetTaskDatagramType {
     BODYLESS,
@@ -36,13 +37,22 @@ enum NetTaskDatagramType {
     REGISTER_CHALLENGE,
     REGISTER_CHALLENGE2,
     CONNECTION_REJECTED,
+    CONNECTION_RESET,
     //#endregion ------- REGISTER PROCESS -------
     PUSH_SCHEMAS,
     SEND_METRICS,
     // REQUEST_METRICS,
     // RESPONSE_TASK,
     // RESPONSE_METRICS
+    WAKE,
 };
+
+enum NetTaskRejectedReason {
+    NULL,
+    UNKNOWN,
+    CRYPTO_ERROR,
+    AUTH_ERROR,
+}
 //#endregion ============== Constants ==============
 /**
  * This class represents a message datagram used between the Agent and Server solutions
@@ -120,7 +130,7 @@ class NetTask {
                 - N_ACKNOWLEDGEMENT_NUMBER: ${this.nacknowledgementNumber}
                 - HAS_MORE_FRAGMENTS: ${this.moreFragments}
                 - OFFSET: ${this.offset}
-                - TYPE: ${this.type}
+                - TYPE: ${NetTaskDatagramType[this.type]}
                 - PAYLOAD_SIZE: ${this.payloadSize}
         `;
     }
@@ -281,11 +291,71 @@ class NetTaskBodyless extends NetTask {
 }
 
 class NetTaskRejected extends NetTask {
+    private reasonFlag: NetTaskRejectedReason;
+
     public constructor(
         sessionId: Buffer,
         sequenceNumber: number,
         acknowledgementNumber: number,
-        nacknowledgementNumber: number
+        nacknowledgementNumber: number,
+        reasonFlag: NetTaskRejectedReason
+    ) {
+        super(
+            sessionId,
+            NET_TASK_NOCRYPTO,
+            sequenceNumber,
+            acknowledgementNumber,
+            nacknowledgementNumber, 
+            false,
+            0,
+            NetTaskDatagramType.CONNECTION_REJECTED,
+            0
+        );
+
+        this.reasonFlag = reasonFlag;
+    }
+
+    public getReasonFlag() {
+        return this.reasonFlag;
+    }
+
+    public serialize() {
+        const privHeader = super.serializePrivateHeader();
+        this.payloadSize = privHeader.byteLength + 1;
+
+        const pubHeader = super.serializePublicHeader();
+        const newWriter = new BufferWriter();
+
+        newWriter.write(pubHeader);
+        newWriter.write(privHeader);
+        newWriter.writeUInt8(this.reasonFlag);
+
+        return newWriter.finish();
+    }
+
+    public static deserialize(reader: BufferReader, dg: NetTask): NetTaskRejected {
+        if (dg.getType() != NetTaskDatagramType.CONNECTION_REJECTED) {
+            throw new Error(`[NT_Rejected] Deserialization Error: Not a ConnectionRejected datagram.`);
+        }
+
+        const reasonFlag: NetTaskRejectedReason = reader.readUInt8();
+
+        return new NetTaskRejected(
+            dg.getSessionId(),
+            dg.getSequenceNumber(),
+            dg.getAcknowledgementNumber(), 
+            dg.getNAcknowledgementNumber(), 
+            reasonFlag
+        );
+    }
+}
+
+class NetTaskReset extends NetTask {
+    public constructor(
+        sessionId: Buffer,
+        sequenceNumber: number,
+        acknowledgementNumber: number,
+        nacknowledgementNumber: number 
     ) {
         super(
             sessionId,
@@ -295,7 +365,7 @@ class NetTaskRejected extends NetTask {
             nacknowledgementNumber,
             false,
             0,
-            NetTaskDatagramType.CONNECTION_REJECTED,
+            NetTaskDatagramType.CONNECTION_RESET,
             0
         );
     }
@@ -904,14 +974,97 @@ class NetTaskMetric extends NetTask {
     }
 }
 
+class NetTaskWake extends NetTask {
+    private ecdhe?: ECDHE;
+
+    public constructor(
+        sessionId: Buffer,
+        sequenceNumber: number,
+        acknowledgementNumber: number
+    ) {
+        super(
+            sessionId,
+            NET_TASK_CRYPTO,
+            sequenceNumber,
+            acknowledgementNumber,
+            0, 
+            false,
+            0, 
+            NetTaskDatagramType.WAKE,
+            0
+        );
+    }
+
+    public link(ecdhe: ECDHE): this {
+        this.ecdhe = ecdhe;
+        return this;
+    }
+
+    public serialize() {
+        if (!this.ecdhe) {
+            throw new Error(`[NT_Wake] Serialization Error: Datagram not linked against an ECDHE instance.`);
+        }
+
+        const enc = this.ecdhe.encrypt(NET_TASK_WAKE_PING);
+        const serENC = ECDHE.serializeEncryptedMessage(enc);
+
+        const payloadWriter = new BufferWriter();
+        const privHeader = super.serializePrivateHeader();
+        payloadWriter.write(privHeader);
+        payloadWriter.writeUInt32(serENC.byteLength);
+        payloadWriter.write(serENC);
+
+        // Envelope payload
+        let envelope: Buffer; 
+        try {
+            envelope = ECDHE.serializeEncryptedMessage(this.ecdhe.envelope(payloadWriter.finish()));
+            this.payloadSize = envelope.byteLength;
+        } catch (e) {
+            throw new Error(`[NT_Wake] Serialization Error: Crypto error:`, { cause: e });
+        }
+
+        const pubHeader = super.serializePublicHeader();
+        const dgramWriter = new BufferWriter();
+        dgramWriter.write(pubHeader);
+        dgramWriter.write(envelope);
+
+        return dgramWriter.finish();
+    }
+
+    public static deserialize(reader: BufferReader, ecdhe: ECDHE, dg: NetTask): NetTaskWake {
+        if (dg.getType() != NetTaskDatagramType.WAKE) {
+            throw new Error(`[NT_Wake] Deserialization Error: Not a Wake datagram.`);
+        }
+
+        const serEncLen = reader.readUInt32();
+        const serEnc = reader.read(serEncLen);
+        const desMessage = ECDHE.deserializeEncryptedMessage(serEnc);
+        const message = ecdhe.decrypt(desMessage);
+
+        if (message.toString("utf8") !== NET_TASK_WAKE_PING) {
+            throw new Error(`[NT_Wake] Deserialization Error: Wake Datagram payload broken or invalid.`);
+        }
+
+        return new NetTaskWake(
+            dg.getSessionId(), 
+            dg.getSequenceNumber(), 
+            dg.getAcknowledgementNumber()
+        );
+    }
+}
+
 export {
-    NetTask,
     NetTaskDatagramType,
+    NetTaskRejectedReason,
+
+    NetTask,
     NetTaskRejected,
+    NetTaskReset,
     NetTaskRegister,
     NetTaskRegisterChallenge,
     NetTaskRegisterChallenge2,
     NetTaskPushSchemas,
     NetTaskMetric,
+    NetTaskWake,
     NetTaskBodyless
 };

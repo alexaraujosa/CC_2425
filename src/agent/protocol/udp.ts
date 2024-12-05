@@ -5,15 +5,25 @@
  * @copyright Copyright (c) 2024 DarkenLM https://github.com/DarkenLM
  */
 
-import { NetTask, NetTaskDatagramType, NetTaskRegister, NetTaskRegisterChallenge, NetTaskRegisterChallenge2, NetTaskPushSchemas, NetTaskMetric, NetTaskBodyless } from "$common/datagram/NetTask.js";
+import fs from "fs";
+import { NetTask, NetTaskDatagramType, NetTaskRegister, NetTaskRegisterChallenge, NetTaskRegisterChallenge2, NetTaskPushSchemas, NetTaskMetric, NetTaskRejected, NetTaskRejectedReason, NetTaskWake, NetTaskBodyless } from "$common/datagram/NetTask.js";
 import { ConnectionTarget } from "$common/protocol/connection.js";
 import { ECDHE } from "$common/protocol/ecdhe.js";
 import { UDPConnection } from "$common/protocol/udp.js";
-import { BufferReader } from "$common/util/buffer.js";
+import { BufferReader, bufferXOR } from "$common/util/buffer.js";
 import { RemoteInfo } from "dgram";
 //import { executeIPerfServer, executePing } from "./executor.js";
 import { SPACKTask } from "$common/datagram/spack.js";
-import { ConnectionRejected, DuplicatedPackageError, FlowControl, MaxRetransmissionsReachedError, OutOfOrderPackageError, ReachedMaxWindowError } from "$common/protocol/flowControl.js";
+import { DuplicatedPackageError, FlowControl, MaxRetransmissionsReachedError, OutOfOrderPackageError, ReachedMaxWindowError } from "$common/protocol/flowControl.js";
+import { subscribeShutdown } from "../../common/util/shutdown.js";
+
+const ECDHE_ALGO = "secp128r1";
+
+interface Keystore {
+    sessionId: Buffer
+    secret: Buffer
+    salt: Buffer
+}
 
 /**
  * A UDP Client with integrated events and asynchronous flow control.
@@ -26,13 +36,75 @@ class UDPClient extends UDPConnection {
     private target!: ConnectionTarget;
     private ecdhe: ECDHE;
     private flowControl: FlowControl;
-    // private challengeSalt!: Buffer;
+    private keystore: string;
+    private sessionId?: Buffer;
+    private challengeSalt?: Buffer;
+    private wake: boolean;
 
-    public constructor() {
+    public constructor(keystore: string) {
         super();
 
-        this.ecdhe = new ECDHE("secp128r1");
         this.flowControl = new FlowControl();
+        this.keystore = keystore;
+        // Connection keys present. Attempt to revive connection.
+        if (fs.existsSync(keystore)) {
+            this.logger.info("[AGENT] A keystore already exists. Attempting to load connection keys from keystore.");
+            
+            const serKS = fs.readFileSync(keystore);
+            const ksBuf = bufferXOR(
+                serKS, 
+                Buffer.from(Buffer.alloc(serKS.byteLength).fill(0x69))
+            ).toString("utf8").split("").toReversed().join("");
+
+            const ksPayload: Keystore = JSON.parse(ksBuf);
+            ksPayload.sessionId = Buffer.from(<string><never>ksPayload.sessionId, "base64url");
+            ksPayload.secret = Buffer.from(<string><never>ksPayload.secret, "base64url");
+            ksPayload.salt = Buffer.from(<string><never>ksPayload.salt, "base64url");
+
+            this.logger.log("UDP SERVER KEYSTORE:", ksPayload);
+
+            this.ecdhe = new ECDHE(ksPayload.secret, ksPayload.salt);
+            this.sessionId = ksPayload.sessionId;
+            this.challengeSalt = ksPayload.salt;
+            this.wake = true;
+
+            this.logger.success("[AGENT] Successfully loaded keystore from disk.");
+            
+            // process.exit(1);
+        } else {
+            this.ecdhe = new ECDHE(ECDHE_ALGO);
+            this.wake = false;
+        }
+
+        subscribeShutdown(() => {
+            this.logger.info("UDP Client shutting down.");
+
+            if (this.ecdhe.initialized && this.sessionId && this.challengeSalt) {
+                this.saveConnection();
+            }
+        });
+
+        this.logger.success("UDP server subscribed to shitdown hook.");
+    }
+
+    public saveConnection() {
+        if (!this.ecdhe.initialized || !this.sessionId || !this.challengeSalt) return;
+
+        this.logger.info("Storing connection keys on keystore.");
+        const ksPayload = {
+            sessionId: this.sessionId.toString("base64url"),
+            secret: this.ecdhe.secret!.toString("base64url"),
+            salt: this.challengeSalt.toString("base64url")
+        };
+
+        const ksBuf = Buffer.from(JSON.stringify(ksPayload).split("").toReversed().join(""));
+        const serKS = bufferXOR(
+            ksBuf, 
+            Buffer.from(Buffer.alloc(ksBuf.byteLength).fill(0x69))
+        );
+        
+        fs.writeFileSync(this.keystore, serKS, "binary");
+        this.logger.success("Successfully stored connection keys.");
     }
     
     public onError(err: Error): void {
@@ -81,10 +153,10 @@ class UDPClient extends UDPConnection {
                         
                         this.flowControl.evaluateConnection(nt);
                     } catch (error) {
-                        if (error instanceof ConnectionRejected) {
-                            this.logger.error("[AGENT] Connection rejected. Try again later.");
-                            break;
-                        }
+                        // if (error instanceof ConnectionRejected) {
+                        //     this.logger.error("[AGENT] Connection rejected. Try again later.");
+                        //     break;
+                        // }
                         if (error instanceof DuplicatedPackageError) {
                             this.logger.error("Duplicated package:", error.message);
                             break;
@@ -104,9 +176,9 @@ class UDPClient extends UDPConnection {
                         }
                     }
 
-                    this.logger.pLog(`---------- PACOTE RECEBIDO ----------`);
-                    this.logger.pLog(nt.toString());
-                    this.logger.pLog(`-------------------------------------`); 
+                    this.logger.log(`---------- PACOTE RECEBIDO ----------`);
+                    this.logger.log(nt.toString());
+                    this.logger.log(`-------------------------------------`); 
 
                     switch (nt.getType()) {
                         /**
@@ -124,6 +196,8 @@ class UDPClient extends UDPConnection {
                             const confirm = this.ecdhe.verifyChallenge(ECDHE.deserializeChallenge(registerDg.challenge));
                             this.ecdhe.regenerateKeys(confirm.control);
 
+                            this.challengeSalt = confirm.control;
+
                             const register2Dg = new NetTaskRegisterChallenge2(
                                 nt.getSessionId(),
                                 this.flowControl.getLastSeq(),
@@ -139,8 +213,37 @@ class UDPClient extends UDPConnection {
                             break;
                         }
                         case NetTaskDatagramType.CONNECTION_REJECTED: {
-                            this.logger.error("[AGENT] Connection rejected. Try again later.");
-                            process.exit(1);
+                            const rejectedDg = NetTaskRejected.deserialize(payloadReader, nt);
+
+                            // 0-RTT attempted. Reset connection.
+                            if (this.wake) {
+                                this.wake = false;
+                                this.logger.info("[AGENT] Connection revival failed. Restarting connection.");
+
+                                if (fs.existsSync(this.keystore)) fs.rmSync(this.keystore);
+                                
+                                this.ecdhe = new ECDHE(ECDHE_ALGO);
+                                this.sessionId = this.ecdhe.generateSessionId();
+                                this.challengeSalt = undefined;
+
+                                // const registerDg = new NetTaskRegister(this.sessionId, 0, 0, false, this.ecdhe.publicKey);
+                                const registerDg = new NetTaskRegister(
+                                    this.sessionId, 
+                                    this.flowControl.getLastSeq(), 
+                                    this.flowControl.getLastAck(), 
+                                    0, 
+                                    false, 
+                                    0, 
+                                    this.ecdhe.publicKey
+                                );
+                                this.send(registerDg);
+                            } else {
+                                this.logger.error(`[AGENT] Connection rejected with reason: ${
+                                    NetTaskRejectedReason[rejectedDg.getReasonFlag()]
+                                }. Try again later.`);
+
+                                process.exit(1);
+                            }
                             break;
                         }
                         case NetTaskDatagramType.PUSH_SCHEMAS: {
@@ -203,7 +306,37 @@ class UDPClient extends UDPConnection {
                             }
                             break;
                         }
-                        default:{
+                        case NetTaskDatagramType.WAKE: {
+                            this.logger.info("[AGENT] Got Wake packet from server.");
+                            try {
+                                // Ignore, because no real payload is sent, just a sanity test.
+                                NetTaskWake.deserialize(payloadReader, this.ecdhe!, nt);
+                            } catch(e) {
+                                this.logger.error("[AGENT] Invalid wake packet:", e);
+                                this.logger.info("[AGENT] Restarting connection.");
+
+                                fs.rmSync(this.keystore);
+                                
+                                this.ecdhe = new ECDHE(ECDHE_ALGO);
+                                this.sessionId = this.ecdhe.generateSessionId();
+                                this.challengeSalt = undefined;
+
+                                // const registerDg = new NetTaskRegister(this.sessionId, 0, 0, false, this.ecdhe.publicKey);
+                                const registerDg = new NetTaskRegister(
+                                    this.sessionId, 
+                                    this.flowControl.getLastSeq(), 
+                                    this.flowControl.getLastAck(), 
+                                    0, 
+                                    false, 
+                                    0, 
+                                    this.ecdhe.publicKey
+                                );
+                                this.send(registerDg);
+                            }
+
+                            break;
+                        }
+                        default: {
                             this.logger.warn("[AGENT] Unknown datagram received. Ignoring.");
                             break;
                         }
@@ -232,11 +365,11 @@ class UDPClient extends UDPConnection {
                 this.flowControl.readyToSend(dgToSend);
             }
 
-            this.logger.pLog(`---------- PACOTE ENVIADO ----------`);
-            this.logger.pLog(dgToSend.toString());
-            this.logger.pLog(`-------------------------------------`); 
+            this.logger.log(`---------- PACOTE ENVIADO ----------`);
+            this.logger.log(dgToSend.toString());
+            this.logger.log(`-------------------------------------`); 
             
-            if(dgToSend.getType() === NetTaskDatagramType.BODYLESS){
+            if(dgToSend.getType() === NetTaskDatagramType.BODYLESS || dgToSend.getType() === NetTaskDatagramType.WAKE){
                 //@ts-expect-error STFU Typescript.
                 this.socket.send(dgToSend.serialize(), this.target.port, this.target.address);
                 return;
@@ -268,14 +401,40 @@ class UDPClient extends UDPConnection {
         this.flowControl.setLastAck(0);
         this.flowControl.setLastSeq(1);
 
-        const connectionId = this.ecdhe.generateSessionId();
+        // const connectionId = this.ecdhe.generateSessionId();
+        // this.sessionId = connectionId;
+        this.sessionId ??= this.ecdhe.generateSessionId();
         
-        /**
-         * First phase of the Registration Process, where an Agent sends the Server his public key.
-         */
-        const registerDg = new NetTaskRegister(connectionId, this.flowControl.getLastSeq(), this.flowControl.getLastAck(), 0, false, 0, this.ecdhe.publicKey);
-        this.logger.log("[AGENT] First phase auth:", registerDg);
-        this.send(registerDg);
+        if (this.ecdhe.initialized) {
+            this.logger.info("Attempting to immediately revive connection.");
+
+            // Connection was revived. Attempt to immediately start connection using 0-RTT.
+            const wakeDg = new NetTaskWake(
+                this.sessionId,
+                1,
+                0
+            ).link(this.ecdhe);
+
+            this.send(wakeDg);
+        } else {
+            // There wasn't a previous connection, or the keystore was deleted.
+            /**
+             * First phase of the Registration Process, where an Agent sends the Server his public key.
+             */
+            // const registerDg = new NetTaskRegister(this.sessionId, 0, 0, false, this.ecdhe.publicKey);
+            const registerDg = new NetTaskRegister(
+                this.sessionId, 
+                this.flowControl.getLastSeq(), 
+                this.flowControl.getLastAck(), 
+                0, 
+                false, 
+                0, 
+                this.ecdhe.publicKey
+            );
+            this.logger.log("[AGENT] First phase auth:", registerDg);
+            this.send(registerDg);
+        }
+        
     }
 
     public close() {

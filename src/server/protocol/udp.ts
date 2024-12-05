@@ -1,5 +1,5 @@
 import crypto from "crypto";
-import { NetTask, NetTaskDatagramType, NetTaskRegister, NetTaskRegisterChallenge, NetTaskRegisterChallenge2, NetTaskPushSchemas, NetTaskRejected, NetTaskMetric, NetTaskBodyless } from "$common/datagram/NetTask.js";
+import { NetTask, NetTaskDatagramType, NetTaskRegister, NetTaskRegisterChallenge, NetTaskRegisterChallenge2, NetTaskPushSchemas, NetTaskRejected, NetTaskMetric, NetTaskRejectedReason, NetTaskWake, NetTaskBodyless } from "$common/datagram/NetTask.js";
 import { ConnectionTarget, ConnectionTargetLike, RemoteInfo } from "$common/protocol/connection.js";
 import { ChallengeControl, ECDHE } from "$common/protocol/ecdhe.js";
 import { UDPConnection } from "$common/protocol/udp.js";
@@ -8,7 +8,8 @@ import { createDevice, deviceToString } from "$common/db/interfaces/IDevice.js";
 import { DatabaseDAO } from "$common/db/databaseDAO.js";
 import { packTaskSchemas } from "$common/datagram/spack.js";
 import { createMetrics } from "$common/db/interfaces/IMetrics.js";
-import { ConnectionRejected, DuplicatedPackageError, FlowControl, MaxRetransmissionsReachedError, OutOfOrderPackageError, ReachedMaxWindowError } from "$common/protocol/flowControl.js";
+import { DuplicatedPackageError, FlowControl, MaxRetransmissionsReachedError, OutOfOrderPackageError, ReachedMaxWindowError } from "$common/protocol/flowControl.js";
+import { subscribeShutdown } from "$common/util/shutdown.js";
 
 /**
  * This class is meant to be used as a base for UDP Server implementations.
@@ -29,6 +30,10 @@ class UDPServer extends UDPConnection {
         this.devicesNames = Object.fromEntries(Object.entries(config.devices).map(([k,v]) => [v.ip, k]));
         this.sessionIds = {};
         this.dbMapper = dbMapper;
+
+        subscribeShutdown(async () => {
+            
+        });
     }
 
     public onError(err: Error): void {
@@ -61,15 +66,15 @@ class UDPServer extends UDPConnection {
         try{
             const dgToSend = flowControl.controlledSend(dg);
             
+            this.logger.log(`---------- PACOTE ENVIADO ----------`);
+            this.logger.log(dgToSend.toString());
+            this.logger.log(`-------------------------------------`); 
+            
             if(dgToSend.getSequenceNumber() >= flowControl.getLastSeq()){
                 flowControl.readyToSend(dgToSend);
             }
 
-            this.logger.pLog(`---------- PACOTE ENVIADO ----------`);
-            this.logger.pLog(dgToSend.toString());
-            this.logger.pLog(`-------------------------------------`); 
-            
-            if(dgToSend.getType() === NetTaskDatagramType.BODYLESS){
+            if(dgToSend.getType() === NetTaskDatagramType.BODYLESS || dgToSend.getType() === NetTaskDatagramType.WAKE || dgToSend.getType() === NetTaskDatagramType.CONNECTION_REJECTED){
                 //@ts-expect-error STFU Typescript.
                 this.socket.send(dgToSend.serialize(), target.port, target.address);
                 return;
@@ -122,8 +127,21 @@ class UDPServer extends UDPConnection {
                     }
 
                     if (NetTask.isEncrypted(pHeader)) {
-                        const client = this.clients.get(pHeader.sessionId.toString("hex"));
-                        if (!client) throw new Error(`[SERVER] Authentication error: Unknown client '${pHeader.sessionId.toString("hex")}'`);
+                        let client = this.clients.get(pHeader.sessionId.toString("hex"));
+                        if (!client) {
+                            const device = await this.db.getDeviceBySession(pHeader.sessionId);
+                            if (!device) throw new Error(
+                                `[SERVER] Authentication error: Unknown client '${pHeader.sessionId.toString("hex")}'`
+                            );
+
+                            client = {
+                                flowControl: new FlowControl(),
+                                ecdhe: new ECDHE(device.auth.secret, device.auth.salt),
+                                salt: device.auth.salt,
+                                challenge: undefined
+                            };
+                            this.clients.set(pHeader.sessionId.toString("hex"), client);
+                        }
 
                         try {
                             const rawPayload = reader.read(pHeader.payloadSize);
@@ -152,10 +170,10 @@ class UDPServer extends UDPConnection {
                             
                             client.flowControl.evaluateConnection(_nt);
                         } catch (error) {
-                            if (error instanceof ConnectionRejected) {
-                                this.logger.error(error.message);
-                                break;
-                            }
+                            // if (error instanceof ConnectionRejected) {
+                            //     this.logger.error(error.message);
+                            //     break;
+                            // }
                             if (error instanceof DuplicatedPackageError) {
                                 this.logger.error("Duplicated package:", error.message);
                                 break;
@@ -176,9 +194,9 @@ class UDPServer extends UDPConnection {
                         }
                     }
 
-                    this.logger.pLog(`---------- PACOTE RECEBIDO ----------`);
-                    this.logger.pLog(nt.toString());
-                    this.logger.pLog(`-------------------------------------`); 
+                    this.logger.log(`---------- PACOTE RECEBIDO ----------`);
+                    this.logger.log(nt.toString());
+                    this.logger.log(`-------------------------------------`); 
 
                     switch (nt.getType()) {
 
@@ -215,7 +233,8 @@ class UDPServer extends UDPConnection {
                                     nt.getSessionId(),
                                     0,
                                     0,
-                                    0
+                                    0,
+                                    NetTaskRejectedReason.AUTH_ERROR
                                 );
                                 this.send(flowControl, rejectedDg, rinfo);
                                 break;
@@ -281,6 +300,7 @@ class UDPServer extends UDPConnection {
                                     0,
                                     0,
                                     0,
+                                    NetTaskRejectedReason.CRYPTO_ERROR
                                 );
                                 this.send(new FlowControl(), rejectedDg, rinfo);
                                 break;
@@ -288,14 +308,37 @@ class UDPServer extends UDPConnection {
 
                             client?.ecdhe.regenerateKeys(client.challenge!.control);
 
-                            const device = createDevice(
-                                rinfo.address,
-                                rinfo.port,
-                                <Buffer> client?.ecdhe.secret,
-                                <Buffer> client?.salt,
-                                <Buffer> client?.ecdhe.generateSessionId(client.salt),
-                                new Date()
-                            );
+                            // const device = createDevice(
+                            //     rinfo.address,
+                            //     rinfo.port,
+                            //     <Buffer> client?.ecdhe.secret,
+                            //     // <Buffer> client?.salt,
+                            //     // <Buffer> client?.ecdhe.generateSessionId(client.salt),
+                            //     client!.challenge!.control,
+                            //     nt.getSessionId(),
+                            //     new Date()
+                            // );
+                            let device;
+                            const _device = await this.db.getDeviceBySession(nt.getSessionId());
+                            
+                            if (_device) {
+                                device = _device;
+                                device.ip = rinfo.address;
+                                device.port = rinfo.port;
+
+                                device.auth.secret = client!.ecdhe.secret!;
+                                device.auth.salt = client!.challenge!.control;
+                            } else {
+                                device = createDevice(
+                                    rinfo.address,
+                                    rinfo.port,
+                                    <Buffer> client?.ecdhe.secret,
+                                    client!.challenge!.control,
+                                    nt.getSessionId(),
+                                    new Date()
+                                );
+                            }
+
                             const deviceId = await this.db.storeDevice(device);
                             this.logger.info("[SERVER] Stored device with ID: " + deviceId);
 
@@ -366,6 +409,38 @@ class UDPServer extends UDPConnection {
                             this.logger.log("[SERVER] Got metrics:", metricsDg);
                             break;
                         }
+                        case NetTaskDatagramType.WAKE: {
+                            const client = this.clients.get(nt.getSessionId().toString("hex"));
+                            
+                            this.logger.info("[SERVER] Got Wake packet.");
+                            try {
+                                // Ignore, because no real payload is sent, just a sanity test.
+                                NetTaskWake.deserialize(payloadReader, client!.ecdhe!, nt);
+                            } catch(e) {
+                                this.logger.error("[SERVER] Invalid wake packet:", e);
+
+                                const rejectedDg = new NetTaskRejected(
+                                    nt.getSessionId(),
+                                    client!.flowControl.getLastSeq(),
+                                    client!.flowControl.getLastAck(),
+                                    0,
+                                    NetTaskRejectedReason.CRYPTO_ERROR
+                                );
+                                this.send(client!.flowControl, rejectedDg, rinfo);
+                            }
+
+                            this.logger.success("Wake packet is valid.");
+
+                            const wakeDg = new NetTaskWake(
+                                nt.getSessionId(),
+                                client!.flowControl.getLastSeq(),
+                                client!.flowControl.getLastAck(),
+                            ).link(client!.ecdhe);
+
+                            this.send(client!.flowControl, wakeDg, rinfo);
+
+                            break;
+                        }
                         case NetTaskDatagramType.BODYLESS: {
                             const client = this.clients.get(nt.getSessionId().toString("hex"));
                             if(!client){
@@ -397,7 +472,8 @@ class UDPServer extends UDPConnection {
                         sessionId,
                         0,
                         0,
-                        0
+                        0,
+                        NetTaskRejectedReason.UNKNOWN
                     );
                     this.send(new FlowControl(), rejectedDg, rinfo);
                 } else {

@@ -145,7 +145,15 @@ class BufferReader implements _BufferReaderIndex {
     //#endregion ====== Readers =======
 }
 
+function bufferXOR(buf1: Buffer, buf2: Buffer): Buffer {
+    const bufResult = Buffer.from(buf1.map((b, i) => b ^ buf2[i]));
+
+    return bufResult;
+}
+
 export {
     BufferWriter,
-    BufferReader
+    BufferReader,
+
+    bufferXOR
 };

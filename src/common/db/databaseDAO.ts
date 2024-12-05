@@ -15,8 +15,8 @@ import deviceModel from "./models/deviceModel.js";
 import taskModel from "./models/taskModel.js";
 import metricsModel from "./models/IMetricsModel.js";
 
-// const MONGO_URL = 'mongodb://localhost:27017/CCDatabase';
-const MONGO_URL = "mongodb://192.168.56.101:27017/CCDatabase";
+const MONGO_URL = "mongodb://localhost:27017/CCDatabase";
+// const MONGO_URL = "mongodb://192.168.56.101:27017/CCDatabase";
 
 /**
  * A Data access object that establishes connection with a MongoDB database,
@@ -115,6 +115,17 @@ class DatabaseDAO {
         if (!device) {
             throw new Error("Error fetching device with id: " + id);
         }
+        return device;
+    }
+
+    /**
+     * Retrieves a device by its session Id.
+     * @param {Buffer} sessionId - The session Id of the connection.
+     * @returns {Promise<IDevice | null>} The device data, or null if not found.
+     * @throws Throws an error when the device does not exist.
+     */
+    public async getDeviceBySession(sessionId: Buffer): Promise<IDevice | null> {
+        const device = await this.deviceModel.findOne({ "auth.sessionId": sessionId });
         return device;
     }
 

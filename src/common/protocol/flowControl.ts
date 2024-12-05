@@ -1,8 +1,26 @@
-import { NetTask, NetTaskDatagramType } from "$common/datagram/NetTask.js";
+/**
+ * @module FlowControl
+ * 
+ * @description This modules contains implementations of the FlowControl used by an entity
+ * (Server or Client) to control the window, the number of retransmission try, the recovery list, and more.
+ * 
+ * @copyright Copyright (c) 2024 Pauloarf https://github.com/Pauloarf
+ */
+
+import { NetTask, NetTaskDatagramType, NetTaskRejectedReason } from "$common/datagram/NetTask.js";
 import { getOrCreateGlobalLogger } from "$common/util/logger.js";
 
+/**
+ * This variable is used to set the maximum payload size... A bigger payload casuas fragmentation
+ */
 const MAX_PAYLOAD_SIZE = 1425;
 
+/**
+ * This class helps in the creation of custom errors.
+ *
+ * @class CustomError
+ * @extends {Error}
+ */
 class CustomError extends Error {
     constructor(message: string) {
         super(message); // Passa a mensagem para a classe base `Error`
@@ -11,36 +29,78 @@ class CustomError extends Error {
     }
 }
 
+/**
+ * This error is used to identenfy when a received package is duplicated.
+ *
+ * @class DuplicatedPackageError
+ * @extends {CustomError}
+ */
 class DuplicatedPackageError extends CustomError {
     constructor(sequenceNumber: number) {
         super(`The received package is duplicated! Seq: ${sequenceNumber}`);
     }
 }
 
+/**
+ * This error is used to identenfy when a received package is out-of-order.
+ *
+ * @class OutOfOrderPackageError
+ * @extends {CustomError}
+ */
 class OutOfOrderPackageError extends CustomError {
     constructor(expected: number, received: number) {
         super(`The received package is out of order! Expected: ${expected}; Received: ${received}`);
     }
 }
 
+/**
+ * This error is used to identenfy when maximun transmission try are reached.
+ *
+ * @class MaxRetransmissionsReachedError
+ * @extends {CustomError}
+ */
 class MaxRetransmissionsReachedError extends CustomError {
     constructor(sequenceNumber: number) {
         super(`Max retransmissions reached for package ${sequenceNumber}`);
     }
 }
 
+/**
+ * This error is used to identenfy when the max window size is reached.
+ *
+ * @class ReachedMaxWindowError
+ * @extends {CustomError}
+ */
 class ReachedMaxWindowError extends CustomError {
     constructor() {
         super(`Max window reached...`);
     }
 }
 
+/**
+ * This error is used to identenfy when a connection is rejected.
+ *
+ * @class ConnectionRejected
+ * @extends {CustomError}
+ */
 class ConnectionRejected extends CustomError {
-    constructor() {
-        super(`Connection was rejected!!`);
+    constructor(reason: NetTaskRejectedReason) {
+        super(`Connection was rejected with reason: ${NetTaskRejectedReason[reason]}.`);
     }
 }
 
+/**
+ * A FlowControl object that helps keep in track the sequence number of the last received package,
+ * the last acknolagment given, a list of the last 20 packages sent, and more. It helps control more
+ * than just flow, it controls most aspects of the connection, including fragmentation, timers for
+ * ratransmission and more.
+ * 
+ * (04/12/2024) Fragmentations remains not implemented
+ * 
+ * @example
+ * const fwc = new FlowControl(); ||  const fwc = new FlowControl(5); 
+ * fwc.controlledSend(datagram);
+ */
 class FlowControl{
     private completeMsg: {
         [nrSeq: number] : Buffer;
@@ -57,6 +117,13 @@ class FlowControl{
     private retransmissionTimeout: number;
     private maxRetransmissions: number;
 
+    /**
+     * Creates an instance of FlowControl.
+     * @param {number} [packetWindow=3]
+     * @param {number} [retransmissionTimeout=5000]
+     * @param {number} [maxRetransmissions=3]
+     * @memberof FlowControl
+     */
     public constructor(packetWindow: number = 3, retransmissionTimeout: number = 5000, maxRetransmissions: number = 3) {
         this.completeMsg = {};
         this.lastSeq = 1;
@@ -72,16 +139,27 @@ class FlowControl{
     }
 
     public getCompleteMsg() { return this.completeMsg; }
+
     public getLastSeq() { return this.lastSeq; }
+
     public getLastAck() { return this.lastAck; }
 
-    public setLastSeq(seq: number) {this.lastSeq = seq; }
-    public setLastAck(ack: number) {this.lastAck = ack; }
+    public setLastSeq(seq: number) { this.lastSeq = seq; return this; }
 
-    public addMsgToBuffer(msg: Buffer){
-        return msg;
-    }
+    public setLastAck(ack: number) { this.lastAck = ack; return this; }
 
+    //public addMsgToBuffer(msg: Buffer){
+    //    return msg;
+    //}
+
+    /**
+     * Adds the datagram used as input to the controlled queue. Then returns the first element, which
+     * is the one that should be sent. This assures that the MaxWindow size is never reached.
+     *
+     * @param {NetTask} [dg]
+     * @return {*}  {NetTask}
+     * @memberof FlowControl
+     */
     public controlledSend(dg?: NetTask): NetTask {
         const logger = getOrCreateGlobalLogger();
         if ( dg ) {
@@ -115,6 +193,14 @@ class FlowControl{
         }
     }
 
+    /**
+     * Retrives from the revocery list an old datagram with the sequence number equals to 
+     * the one used in input. If the datagram does not existe in the recovery list, returns an error.
+     *
+     * @param {number} seq
+     * @return {*}  {NetTask}
+     * @memberof FlowControl
+     */
     public getDgFromRecoveryList(seq: number): NetTask{
         for (const dg of this.recoveryList){
             if(dg.getSequenceNumber() === seq){
@@ -124,6 +210,14 @@ class FlowControl{
         throw new Error("Package not found, it was already deleted!");
     }
 
+    /**
+     * It prepeares the flowControl object for the action of sending a datagram, by adding it to 
+     * the recovery list and setting the internal flowControl sequence number to plus one. This
+     * assures that the next this.getLastSeq() retrives the correct value for the next datagram creation.
+     *
+     * @param {NetTask} dg
+     * @memberof FlowControl
+     */
     public readyToSend(dg: NetTask){
         this.addToRecoveryList(dg);
         this.lastSeq = this.lastSeq + 1;
@@ -150,6 +244,13 @@ class FlowControl{
         }
     }
 
+    /**
+     * Starts a timer for the datagram passed as a parameter. Afte the timer runs out. It try to retransmit.
+     *
+     * @param {NetTask} dg
+     * @param {(seqNumber: number) => void} onTimeout
+     * @memberof FlowControl
+     */
     public startTimer(dg: NetTask, onTimeout: (seqNumber: number) => void) {
         const logger = getOrCreateGlobalLogger();
         const seqNumber = dg.getSequenceNumber();
@@ -186,15 +287,23 @@ class FlowControl{
         this.retransmissionCounts.delete(seqNumber);
     }
 
-    //This function evaluates if the connection is a register, and restarts the values if so
-    //If it is not, verifies duplications and throws an error if duplicated.
-    //If it is new i need to verify if it is an advanced package
-    //If it is a god one, remove the acked dg from the list, and anwser to this one.
+    /**
+     * This funciton evaluates if the connection is a new register and restart the flowControl values.
+     * If it is not a register, verifies duplication an throws an error if duplicated.
+     * If it is new, it verifies if the package is out-of-order, throwing an error if is.
+     * Lastly, if everything is correct, removes the timer for the datagram that was acknowlegd by
+     * the one used as a parameter.
+     *
+     * @param {NetTask} dg
+     * @return {*} 
+     * @memberof FlowControl
+     */
     public evaluateConnection(dg: NetTask) {
         const isCorrect = true;
     
         if (dg.getType() === NetTaskDatagramType.CONNECTION_REJECTED){
-            throw new ConnectionRejected();
+            // throw new ConnectionRejected(dg.getReason());
+            return isCorrect;
         }
         
         if (this.isNewConnection(dg.getType())) {
