@@ -18,6 +18,7 @@ import { createAlertConditions, createLinkMetrics, createOptions, createTask, IO
 import { UDPServer } from "./protocol/udp.js";
 import { TCPServer } from "./protocol/tcp.js";
 import { ConnectionTarget } from "$common/protocol/connection.js";
+import { initWebServer } from "./web/index.js";
 
 //#region ============== Types ==============
 interface CLIOptions {
@@ -158,6 +159,8 @@ export async function serverInit(options: CLIOptions) {
 
     const udpServer = new UDPServer(db, dbMapper);
     udpServer.listen(port + 1);
+
+    initWebServer(options);
 }
 
 //#region ============== CLI ==============
@@ -180,3 +183,7 @@ if (isBinMode(import.meta.url)) {
     cliHandler();
 }
 //#endregion ============== CLI ==============
+
+export {
+    type CLIOptions
+};
