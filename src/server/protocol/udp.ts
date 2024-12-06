@@ -1,5 +1,5 @@
 import crypto from "crypto";
-import { NetTask, NetTaskDatagramType, NetTaskRegister, NetTaskRegisterChallenge, NetTaskRegisterChallenge2, NetTaskPushSchemas, NetTaskRejected, NetTaskMetric, NetTaskRejectedReason, NetTaskWake, NetTaskBodyless } from "$common/datagram/NetTask.js";
+import { NetTask, NetTaskDatagramType, NetTaskRegister, NetTaskRegisterChallenge, NetTaskRegisterChallenge2, NetTaskPushSchemas, NetTaskRejected, NetTaskMetric, NetTaskRejectedReason, NetTaskWake, NetTaskBodyless, NetTaskReset } from "$common/datagram/NetTask.js";
 import { ConnectionTarget, ConnectionTargetLike, RemoteInfo } from "$common/protocol/connection.js";
 import { ChallengeControl, ECDHE } from "$common/protocol/ecdhe.js";
 import { UDPConnection } from "$common/protocol/udp.js";
@@ -11,12 +11,25 @@ import { createMetrics } from "$common/db/interfaces/IMetrics.js";
 import { DuplicatedPackageError, FlowControl, MaxRetransmissionsReachedError, OutOfOrderPackageError, ReachedMaxWindowError } from "$common/protocol/flowControl.js";
 import { subscribeShutdown } from "$common/util/shutdown.js";
 
+interface ClientData {
+    flowControl: FlowControl, 
+    ecdhe: ECDHE, 
+    salt: Buffer, 
+    challenge?: ChallengeControl,
+    contiguousErrors: number
+}
+
+/**
+ * Maximum number of back-to-back errors allowed per client before the connection is forcefully reset.
+ */
+const MAX_CONTIGUOUS_ERRORS = 10;
+
 /**
  * This class is meant to be used as a base for UDP Server implementations.
  */
-// TODO: Merge into one class. Make listen consistent with TCP.
 class UDPServer extends UDPConnection {
-    private clients: Map<string, {flowControl: FlowControl, ecdhe: ECDHE, salt: Buffer, challenge?: ChallengeControl }>;
+    // private clients: Map<string, {flowControl: FlowControl, ecdhe: ECDHE, salt: Buffer, challenge?: ChallengeControl }>;
+    private clients: Map<string, ClientData>;
     private db: DatabaseDAO;
     private devicesNames: Record<string, string>;
     private sessionIds: Record<string, Buffer>;
@@ -74,7 +87,11 @@ class UDPServer extends UDPConnection {
                 flowControl.readyToSend(dgToSend);
             }
 
-            if(dgToSend.getType() === NetTaskDatagramType.BODYLESS || dgToSend.getType() === NetTaskDatagramType.WAKE || dgToSend.getType() === NetTaskDatagramType.CONNECTION_REJECTED){
+            if(
+                dgToSend.getType() === NetTaskDatagramType.BODYLESS 
+                || dgToSend.getType() === NetTaskDatagramType.WAKE 
+                || dgToSend.getType() === NetTaskDatagramType.CONNECTION_REJECTED
+            ) {
                 //@ts-expect-error STFU Typescript.
                 this.socket.send(dgToSend.serialize(), target.port, target.address);
                 return;
@@ -97,7 +114,7 @@ class UDPServer extends UDPConnection {
     }
 
     public async onMessage(msg: Buffer, rinfo: RemoteInfo): Promise<void> {
-        this.logger.log(`UDP Server got: ${msg} from ${ConnectionTarget.toQualifiedName(rinfo)}`);
+        // this.logger.log(`UDP Server got: ${msg} from ${ConnectionTarget.toQualifiedName(rinfo)}`);
         const reader = new BufferReader(msg);
 
         while (!reader.eof()) {
@@ -138,7 +155,8 @@ class UDPServer extends UDPConnection {
                                 flowControl: new FlowControl(),
                                 ecdhe: new ECDHE(device.auth.secret, device.auth.salt),
                                 salt: device.auth.salt,
-                                challenge: undefined
+                                challenge: undefined,
+                                contiguousErrors: 0
                             };
                             this.clients.set(pHeader.sessionId.toString("hex"), client);
                         }
@@ -169,6 +187,7 @@ class UDPServer extends UDPConnection {
                             //Fragmentando tenho de criar o pacote
                             
                             client.flowControl.evaluateConnection(_nt);
+                            client.contiguousErrors = 0;
                         } catch (error) {
                             // if (error instanceof ConnectionRejected) {
                             //     this.logger.error(error.message);
@@ -176,9 +195,13 @@ class UDPServer extends UDPConnection {
                             // }
                             if (error instanceof DuplicatedPackageError) {
                                 this.logger.error("Duplicated package:", error.message);
+                                client.contiguousErrors++;
                                 break;
                             } else if (error instanceof OutOfOrderPackageError) {
                                 this.logger.error("Out-of-order package:", error.message);
+
+                                client.contiguousErrors++;
+
                                 const retransmission = new NetTaskBodyless(
                                     pHeader.sessionId,
                                     client.flowControl.getLastSeq(),
@@ -191,6 +214,21 @@ class UDPServer extends UDPConnection {
                                 this.logger.error("An unexpected error occurred:", error);
                                 break;
                             }
+                        }
+
+                        if (client.contiguousErrors > MAX_CONTIGUOUS_ERRORS) {
+                            this.logger.warn(
+                                `[SERVER] Client ${pHeader.sessionId} @ ${
+                                    ConnectionTarget.toQualifiedName(rinfo)
+                                } exceeded error limit. Resetting connection.`);
+                                
+                            const resetBg = new NetTaskReset(
+                                pHeader.sessionId,
+                                client.flowControl.getLastSeq(),
+                                client.flowControl.getLastAck()
+                            ).link(client.ecdhe);
+                            this.send(client.flowControl, resetBg, rinfo);
+                            break;
                         }
                     }
 
@@ -244,7 +282,10 @@ class UDPServer extends UDPConnection {
                             const salt = ecdhe.link(registerDg.publicKey);
                             const challenge = ecdhe.generateChallenge(crypto.randomBytes(12));
 
-                            this.clients.set(nt.getSessionId().toString("hex"), { flowControl, ecdhe, salt, challenge: challenge });
+                            this.clients.set(
+                                nt.getSessionId().toString("hex"), 
+                                { flowControl, ecdhe, salt, challenge: challenge, contiguousErrors: 0 }
+                            );
             
                             const client = this.clients.get(nt.getSessionId().toString("hex"));
 
@@ -431,13 +472,17 @@ class UDPServer extends UDPConnection {
 
                             this.logger.success("Wake packet is valid.");
 
+                            const newSeq = NetTaskWake.makeNewSeq();
                             const wakeDg = new NetTaskWake(
                                 nt.getSessionId(),
                                 client!.flowControl.getLastSeq(),
                                 client!.flowControl.getLastAck(),
+                                newSeq
                             ).link(client!.ecdhe);
 
                             this.send(client!.flowControl, wakeDg, rinfo);
+                            client!.flowControl.reset(newSeq);
+                            // client!.flowControl.setLastSeq(newSeq);
 
                             break;
                         }

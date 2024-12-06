@@ -301,8 +301,13 @@ class FlowControl{
     public evaluateConnection(dg: NetTask) {
         const isCorrect = true;
     
-        if (dg.getType() === NetTaskDatagramType.CONNECTION_REJECTED){
+        if (dg.getType() === NetTaskDatagramType.CONNECTION_REJECTED) {
             // throw new ConnectionRejected(dg.getReason());
+            return isCorrect;
+        }
+
+        // Wake defines a new connection. If valid, will reset the current flow control and give a new sequence number.
+        if (dg.getType() === NetTaskDatagramType.WAKE) {
             return isCorrect;
         }
         
@@ -329,10 +334,10 @@ class FlowControl{
         return isCorrect;
     }    
 
-    private reset() {
+    public reset(newSeq: number = 1) {
         this.completeMsg = {};
-        this.lastSeq = 1;
-        this.lastAck = 0;
+        this.lastSeq = newSeq;
+        this.lastAck = newSeq - 1;
         this.recoveryList = [];
         this.preventDups = [];
 

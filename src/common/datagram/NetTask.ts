@@ -28,7 +28,7 @@ const NET_TASK_VERSION = 1;
 const NET_TASK_SIGNATURE = Buffer.from("NTTK", "utf8");
 const NET_TASK_CRYPTO    = Buffer.from("CC", "utf8");
 const NET_TASK_NOCRYPTO  = Buffer.from("NC", "utf8");
-const NET_TASK_WAKE_PING = "PING";
+const NET_TASK_WAKE_PING = Buffer.from("WAKEPING", "utf8");
 
 enum NetTaskDatagramType {
     BODYLESS,
@@ -351,18 +351,19 @@ class NetTaskRejected extends NetTask {
 }
 
 class NetTaskReset extends NetTask {
+    protected ecdhe?: ECDHE;
+
     public constructor(
         sessionId: Buffer,
         sequenceNumber: number,
         acknowledgementNumber: number,
-        nacknowledgementNumber: number 
     ) {
         super(
             sessionId,
-            NET_TASK_NOCRYPTO,
+            NET_TASK_CRYPTO,
             sequenceNumber,
             acknowledgementNumber,
-            nacknowledgementNumber,
+            0,
             false,
             0,
             NetTaskDatagramType.CONNECTION_RESET,
@@ -370,17 +371,76 @@ class NetTaskReset extends NetTask {
         );
     }
 
+    public link(ecdhe: ECDHE): this {
+        this.ecdhe = ecdhe;
+        return this;
+    }
+
     public serialize() {
+        if (!this.ecdhe) {
+            throw new Error(`[NT_Wake] Serialization Error: Datagram not linked against an ECDHE instance.`);
+        }
+
+        // const privHeader = super.serializePrivateHeader();
+        // this.payloadSize = privHeader.byteLength;
+
+        // const pubHeader = super.serializePublicHeader();
+        // const newWriter = new BufferWriter();
+
+        // newWriter.write(pubHeader);
+        // newWriter.write(privHeader);
+
+        // return newWriter.finish();
+
+        const timestampBuf = Buffer.alloc(8);
+        timestampBuf.writeBigUInt64BE(BigInt(Date.now()));
+
+        const enc = this.ecdhe.encrypt(timestampBuf);
+        const serENC = ECDHE.serializeEncryptedMessage(enc);
+
+        const payloadWriter = new BufferWriter();
         const privHeader = super.serializePrivateHeader();
-        this.payloadSize = privHeader.byteLength;
+        payloadWriter.write(privHeader);
+        payloadWriter.writeUInt32(serENC.byteLength);
+        payloadWriter.write(serENC);
+
+        // Envelope payload
+        let envelope: Buffer; 
+        try {
+            envelope = ECDHE.serializeEncryptedMessage(this.ecdhe.envelope(payloadWriter.finish()));
+            this.payloadSize = envelope.byteLength;
+        } catch (e) {
+            throw new Error(`[NT_Reset] Serialization Error: Crypto error:`, { cause: e });
+        }
 
         const pubHeader = super.serializePublicHeader();
-        const newWriter = new BufferWriter();
+        const dgramWriter = new BufferWriter();
+        dgramWriter.write(pubHeader);
+        dgramWriter.write(envelope);
 
-        newWriter.write(pubHeader);
-        newWriter.write(privHeader);
+        return dgramWriter.finish();
+    }
 
-        return newWriter.finish();
+    public static deserialize(reader: BufferReader, ecdhe: ECDHE, dg: NetTask): NetTaskReset {
+        if (dg.getType() != NetTaskDatagramType.CONNECTION_RESET) {
+            throw new Error(`[NT_Reset] Deserialization Error: Not a ConnectionReset datagram.`);
+        }
+
+        const serEncLen = reader.readUInt32();
+        const serEnc = reader.read(serEncLen);
+        const desMessage = ECDHE.deserializeEncryptedMessage(serEnc);
+        const message = ecdhe.decrypt(desMessage);
+        const timestamp = message.readBigUInt64BE();
+
+        if (timestamp + 1_000_000n < BigInt(Date.now())) {
+            throw new Error(`[NT_Reset] Deserialization Error: Reset Datagram payload is expired.`);
+        }
+
+        return new NetTaskReset(
+            dg.getSessionId(), 
+            dg.getSequenceNumber(), 
+            dg.getAcknowledgementNumber()
+        );
     }
 }
 
@@ -976,11 +1036,13 @@ class NetTaskMetric extends NetTask {
 
 class NetTaskWake extends NetTask {
     private ecdhe?: ECDHE;
+    private newSeq: number;
 
     public constructor(
         sessionId: Buffer,
         sequenceNumber: number,
-        acknowledgementNumber: number
+        acknowledgementNumber: number,
+        newSeq: number
     ) {
         super(
             sessionId,
@@ -993,6 +1055,8 @@ class NetTaskWake extends NetTask {
             NetTaskDatagramType.WAKE,
             0
         );
+
+        this.newSeq = newSeq;
     }
 
     public link(ecdhe: ECDHE): this {
@@ -1005,7 +1069,11 @@ class NetTaskWake extends NetTask {
             throw new Error(`[NT_Wake] Serialization Error: Datagram not linked against an ECDHE instance.`);
         }
 
-        const enc = this.ecdhe.encrypt(NET_TASK_WAKE_PING);
+        const seqBuf = Buffer.alloc(4);
+        seqBuf.writeUInt32BE(this.newSeq);
+
+        const payloadCompount = Buffer.concat([NET_TASK_WAKE_PING, seqBuf]);
+        const enc = this.ecdhe.encrypt(payloadCompount);
         const serENC = ECDHE.serializeEncryptedMessage(enc);
 
         const payloadWriter = new BufferWriter();
@@ -1040,16 +1108,25 @@ class NetTaskWake extends NetTask {
         const serEnc = reader.read(serEncLen);
         const desMessage = ECDHE.deserializeEncryptedMessage(serEnc);
         const message = ecdhe.decrypt(desMessage);
+        const messageReader = new BufferReader(message);
 
-        if (message.toString("utf8") !== NET_TASK_WAKE_PING) {
+        const ping = messageReader.read(NET_TASK_WAKE_PING.byteLength);
+        const newSeq = messageReader.readUInt32();
+
+        if (!ping.equals(NET_TASK_WAKE_PING)) {
             throw new Error(`[NT_Wake] Deserialization Error: Wake Datagram payload broken or invalid.`);
         }
 
         return new NetTaskWake(
             dg.getSessionId(), 
-            dg.getSequenceNumber(), 
-            dg.getAcknowledgementNumber()
+            newSeq, 
+            dg.getAcknowledgementNumber(),
+            0
         );
+    }
+
+    public static makeNewSeq() {
+        return Math.floor(Math.random() * (2 ** 32 - 1)) + 1;
     }
 }
 

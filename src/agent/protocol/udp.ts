@@ -6,13 +6,14 @@
  */
 
 import fs from "fs";
-import { NetTask, NetTaskDatagramType, NetTaskRegister, NetTaskRegisterChallenge, NetTaskRegisterChallenge2, NetTaskPushSchemas, NetTaskMetric, NetTaskRejected, NetTaskRejectedReason, NetTaskWake, NetTaskBodyless } from "$common/datagram/NetTask.js";
+import { NetTask, NetTaskDatagramType, NetTaskRegister, NetTaskRegisterChallenge, NetTaskRegisterChallenge2, NetTaskPushSchemas, NetTaskMetric, NetTaskRejected, NetTaskRejectedReason, NetTaskWake, NetTaskBodyless, NetTaskReset } from "$common/datagram/NetTask.js";
 import { ConnectionTarget } from "$common/protocol/connection.js";
 import { ECDHE } from "$common/protocol/ecdhe.js";
 import { UDPConnection } from "$common/protocol/udp.js";
 import { BufferReader, bufferXOR } from "$common/util/buffer.js";
 import { RemoteInfo } from "dgram";
 //import { executeIPerfServer, executePing } from "./executor.js";
+// import { deserializeSPACK, packTaskSchemas, serializeSPACK, SPACKTask, unpackTaskSchemas } from "$common/datagram/spack.js";
 import { SPACKTask } from "$common/datagram/spack.js";
 import { DuplicatedPackageError, FlowControl, MaxRetransmissionsReachedError, OutOfOrderPackageError, ReachedMaxWindowError } from "$common/protocol/flowControl.js";
 import { subscribeShutdown } from "../../common/util/shutdown.js";
@@ -111,7 +112,7 @@ class UDPClient extends UDPConnection {
         this.logger.error("UDP Client got an error:", err);
     }
 
-    public onMessage(msg: Buffer, rinfo: RemoteInfo): void {
+    public async onMessage(msg: Buffer, rinfo: RemoteInfo): Promise<void> {
         if (!this.target.match(rinfo)) {
             this.logger.info(`Ignored message from ${ConnectionTarget.toQualifiedName(rinfo)}: Not from target.`);
         }
@@ -190,6 +191,15 @@ class UDPClient extends UDPConnection {
                          * confirmed challenge.
                          */
                         case NetTaskDatagramType.REGISTER_CHALLENGE: {
+                            if (this.ecdhe.initialized) {
+                                this.logger.pWarn(
+                                    "[AGENT] Connection is initialized, but received REGISTER_CHALLENGE."
+                                    + " Packet might have been replayed."
+                                );
+
+                                break;
+                            }
+
                             const registerDg = NetTaskRegisterChallenge.deserialize(payloadReader, nt);
                             this.ecdhe.link(registerDg.publicKey, registerDg.salt);
 
@@ -310,7 +320,52 @@ class UDPClient extends UDPConnection {
                             this.logger.info("[AGENT] Got Wake packet from server.");
                             try {
                                 // Ignore, because no real payload is sent, just a sanity test.
-                                NetTaskWake.deserialize(payloadReader, this.ecdhe!, nt);
+                                const wakeDg = NetTaskWake.deserialize(payloadReader, this.ecdhe!, nt);
+                                this.flowControl.reset(wakeDg.getSequenceNumber());
+                                // this.flowControl.setLastSeq(wakeDg.getSequenceNumber());
+                                this.logger.info("[AGENT] Sequence number reset.");
+                                
+                                // const { initConfig } = await import("../../server/config.js");
+                                // if (!("config" in globalThis)) await initConfig("tmp/config.json");
+
+                                // const tasks = Object.fromEntries(Object.entries(config.tasks).filter(([k,_]) => config.devices["deviceLH"].tasks.includes(k)));
+                                // const pack = packTaskSchemas(tasks);
+                                // const ser = serializeSPACK(pack);
+                                // const deser = deserializeSPACK(ser);
+                                // const ntasks = unpackTaskSchemas(<never>deser);
+
+                                // for (let i = 0; i < 9; i++) {
+                                //     const badPacket = new NetTaskMetric(
+                                //         nt.getSessionId(),
+                                //         // this.flowControl.getLastSeq(),
+                                //         // this.flowControl.getLastAck(),
+                                //         678678 + i,
+                                //         678678,
+                                //         0,
+                                //         false,
+                                //         0,
+                                //         {
+                                //             device_metrics: {
+                                //                 cpu_usage: 90,
+                                //                 ram_usage: 70,
+                                //                 interface_stats: {
+                                //                     eth0: 1234,
+                                //                     eth1: 5678
+                                //                 },
+                                //                 volume: 10
+                                //             },
+                                //             link_metrics: {
+                                //                 bandwidth: 123,
+                                //                 jitter: 456,
+                                //                 packet_loss: 789,
+                                //                 latency: 147
+                                //             }
+                                //         },
+                                //         "task1",
+                                //         ntasks.task1.getUnpacked()
+                                //     ).link(this.ecdhe);
+                                //     this.send(badPacket);
+                                // }
                             } catch(e) {
                                 this.logger.error("[AGENT] Invalid wake packet:", e);
                                 this.logger.info("[AGENT] Restarting connection.");
@@ -332,6 +387,35 @@ class UDPClient extends UDPConnection {
                                     this.ecdhe.publicKey
                                 );
                                 this.send(registerDg);
+                            }
+
+                            break;
+                        }
+                        case NetTaskDatagramType.CONNECTION_RESET: {
+                            this.logger.info("[AGENT] Got Reset packet from server.");
+                            try {
+                                // Ignore, because no real payload is sent, just a sanity test.
+                                NetTaskReset.deserialize(payloadReader, this.ecdhe!, nt);
+                                this.logger.warn("[AGENT] Reset packet is valid. Resetting connection.");
+
+                                fs.rmSync(this.keystore);
+                                
+                                this.ecdhe = new ECDHE(ECDHE_ALGO);
+                                this.sessionId = this.ecdhe.generateSessionId();
+                                this.challengeSalt = undefined;
+
+                                const registerDg = new NetTaskRegister(
+                                    this.sessionId, 
+                                    this.flowControl.getLastSeq(), 
+                                    this.flowControl.getLastAck(), 
+                                    0, 
+                                    false, 
+                                    0, 
+                                    this.ecdhe.publicKey
+                                );
+                                this.send(registerDg);
+                            } catch(e) {
+                                this.logger.error("[AGENT] Invalid reset packet:", e);
                             }
 
                             break;
@@ -387,6 +471,7 @@ class UDPClient extends UDPConnection {
             if ( error instanceof MaxRetransmissionsReachedError){
                 this.logger.warn("Agent is not responding to meeee...");
                 this.socket.close();
+                process.emit("SIGINT");
                 return;
             }
         }
@@ -412,6 +497,7 @@ class UDPClient extends UDPConnection {
             const wakeDg = new NetTaskWake(
                 this.sessionId,
                 1,
+                0,
                 0
             ).link(this.ecdhe);
 
