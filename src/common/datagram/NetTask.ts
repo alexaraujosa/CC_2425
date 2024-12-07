@@ -12,6 +12,7 @@ import { BufferReader, BufferWriter } from "$common/util/buffer.js";
 import { DefaultLogger, getOrCreateGlobalLogger } from "$common/util/logger.js";
 import { _SPACKTask, deserializeSPACK, isSPACKTaskCollection, packTaskSchemas, serializedTaskMetric as serializeTaskMetric, serializeSPACK, SPACKPacked, SPACKTask, SPACKTaskCollectionPacked, SPACKTaskMetric, unpackTaskSchemas, deserializeTaskMetric } from "./spack.js";
 import dedent from "$common/util/dedent.js";
+import { dropEmpty } from "$common/util/object.js";
 
 //#region ============== Types ==============
 interface NetTaskPublicHeader {
@@ -931,13 +932,17 @@ class NetTaskMetric extends NetTask {
             0
         );
 
-        this.spack = spack;
+        this.spack = dropEmpty(Object.fromEntries(Object.entries(spack)));
         this.taskId = taskId;
         this.task = task;
     }
 
     public getMetrics() {
         return this.spack;
+    }
+
+    public getTaskId() {
+        return this.taskId;
     }
 
     public link(ecdhe: ECDHE): this {

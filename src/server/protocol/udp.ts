@@ -6,7 +6,7 @@ import { UDPConnection } from "$common/protocol/udp.js";
 import { BufferReader } from "$common/util/buffer.js";
 import { createDevice, deviceToString } from "$common/db/interfaces/IDevice.js";
 import { DatabaseDAO } from "$common/db/databaseDAO.js";
-import { packTaskSchemas } from "$common/datagram/spack.js";
+import { IgnoreValues, packTaskSchemas } from "$common/datagram/spack.js";
 import { createMetrics } from "$common/db/interfaces/IMetrics.js";
 import { DuplicatedPackageError, FlowControl, MaxRetransmissionsReachedError, OutOfOrderPackageError, ReachedMaxWindowError } from "$common/protocol/flowControl.js";
 import { subscribeShutdown } from "$common/util/shutdown.js";
@@ -79,9 +79,9 @@ class UDPServer extends UDPConnection {
         try{
             const dgToSend = flowControl.controlledSend(dg);
             
-            this.logger.log(`---------- PACOTE ENVIADO ----------`);
-            this.logger.log(dgToSend.toString());
-            this.logger.log(`-------------------------------------`); 
+            // this.logger.log(`---------- PACOTE ENVIADO ----------`);
+            // this.logger.log(dgToSend.toString());
+            // this.logger.log(`-------------------------------------`); 
             
             if(dgToSend.getSequenceNumber() >= flowControl.getLastSeq()){
                 flowControl.readyToSend(dgToSend);
@@ -232,9 +232,9 @@ class UDPServer extends UDPConnection {
                         }
                     }
 
-                    this.logger.log(`---------- PACOTE RECEBIDO ----------`);
-                    this.logger.log(nt.toString());
-                    this.logger.log(`-------------------------------------`); 
+                    // this.logger.log(`---------- PACOTE RECEBIDO ----------`);
+                    // this.logger.log(nt.toString());
+                    // this.logger.log(`-------------------------------------`); 
 
                     switch (nt.getType()) {
 
@@ -293,10 +293,11 @@ class UDPServer extends UDPConnection {
                                 throw new Error(`Agent not found!`);
                             }
 
+                            client.flowControl.setLastAck(nt.getSequenceNumber());
                             const regChallengeDg = new NetTaskRegisterChallenge(
                                 nt.getSessionId(),
                                 client.flowControl.getLastSeq(), 
-                                1,
+                                client.flowControl.getLastAck(),
                                 0,
                                 false,
                                 0,
@@ -304,7 +305,7 @@ class UDPServer extends UDPConnection {
                                 ECDHE.serializeChallenge(challenge.challenge),
                                 salt
                             );
-                            client.flowControl.setLastAck(1);
+
 
                             this.logger.log("[SERVER] Second register phase:", regChallengeDg);
                             // this.clients.set(ConnectionTarget.toQualifiedName(rinfo), { ecdhe, salt, challenge: challenge });
@@ -395,14 +396,13 @@ class UDPServer extends UDPConnection {
                             for (const [taskConfigId, task] of Object.entries(tasks)) {
                                 const taskDatabaseId = this.dbMapper.get(taskConfigId);
                                 const metrics: string[] = [];
-                                if (task.device_metrics.cpu_usage)  metrics.push("cpu");
-                                if (task.device_metrics.interface_stats)  metrics.push("interface_stats");
-                                if (task.device_metrics.ram_usage)  metrics.push("memory");
-                                if (task.device_metrics.volume)  metrics.push("volume");
-                                if (task.link_metrics.bandwidth)  metrics.push("bandwidth");
-                                if (task.link_metrics.jitter)  metrics.push("jitter");
-                                if (task.link_metrics.latency)  metrics.push("latency");
-                                if (task.link_metrics.packet_loss)  metrics.push("packet_loss");
+                                for (const key in task.device_metrics)
+                                    if (task.device_metrics[key as keyof typeof task.device_metrics])
+                                        metrics.push(key);
+
+                                for (const key in task.link_metrics)
+                                    if (task.link_metrics[key as keyof typeof task.link_metrics])
+                                        metrics.push(key);
 
                                 const device = await this.db.getDeviceByIP(rinfo.address);
                                 if(!device){
@@ -451,7 +451,69 @@ class UDPServer extends UDPConnection {
                             );
                             this.send(client.flowControl, ack, rinfo);
 
-                            this.logger.log("[SERVER] Got metrics:", metricsDg);
+                            // this.logger.log("[SERVER] Got metrics:", metricsDg);
+                            const metricsResult = metricsDg.getMetrics();
+
+                            this.logger.info(metricsResult);
+                            
+                            // TODO: Log metrics from device X task Y
+
+                            const metricsDb: {
+                                [metricName: string] : { valor: number; timestamp: Date, alert: boolean}
+                            } = {};
+
+                            if (metricsResult.device_metrics) {
+                                for (const key in metricsResult.device_metrics) {
+
+                                    if (key !== "interface_stats") {
+                                        const value = metricsResult.device_metrics[key as keyof typeof metricsResult.device_metrics];
+
+                                        if (value && value !== IgnoreValues.s8) {
+                                            metricsDb[key] = { 
+                                                valor: metricsResult.device_metrics[key as keyof typeof metricsResult.device_metrics] as number, 
+                                                timestamp: new Date(),
+                                                alert: false 
+                                            };
+                                        }
+                                    } else {
+                                        for (const networkInterface in metricsResult.device_metrics.interface_stats) {
+                                            const value = metricsResult.device_metrics.interface_stats[networkInterface];
+
+                                            if (value && value !== IgnoreValues.s8) {
+                                                this.logger.info(`Received for metric '${key}' value: ${value}`);
+                                                metricsDb[key] = { 
+                                                    valor: metricsResult.device_metrics.interface_stats[networkInterface], 
+                                                    timestamp: new Date(),
+                                                    alert: false 
+                                                };
+                                            }
+                                        }
+                                    }
+                                }
+                            }
+
+                            if (metricsResult.link_metrics) {
+                                for (const key in metricsResult.link_metrics) {
+                                    let value = metricsResult.link_metrics[key as keyof typeof metricsResult.link_metrics] as number;
+                                    if (value && value !== IgnoreValues.s16) {
+                                        value = value - 1;
+                                        this.logger.info(`Received for metric '${key}' value: ${value}`);
+                                        metricsDb[key] = { 
+                                            valor: value, 
+                                            timestamp: new Date(),
+                                            alert: false 
+                                        };
+                                    }
+                                }
+                            }
+
+                            await this.db.addMetricsToExisting(
+                                <number> this.dbMapper.get(metricsDg.getTaskId()),
+                                nt.getSessionId(),
+                                metricsDb
+                            );
+
+                            this.logger.info("Updated metrics.");
                             break;
                         }
                         case NetTaskDatagramType.WAKE: {
