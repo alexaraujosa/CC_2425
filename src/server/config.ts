@@ -335,6 +335,12 @@ function validateTask(taskName: string, task: RawTask, _config: RawConfig): Vali
         for (const key of Object.keys(task.alert_conditions).filter((k) => !ALERT_CONDITIONS_KEYS.includes(k))) {
             logger.warn(`Task ${taskName} has unknown property '${key}' on alert_conditions.`);
         }
+
+        if (task.alert_conditions.latency && parseStringInterval(task.alert_conditions.latency) === 0)
+            return makeInvalid(new Error(`Task ${taskName} has latency alert condition with an unvalid format. Should have unit (ms)`));
+
+        if (task.alert_conditions.jitter && parseStringInterval(task.alert_conditions.jitter) === 0)
+            return makeInvalid(new Error(`Task ${taskName} has jitter alert condition with an unvalid format. Should have unit (ms)`));
     }
 
     // Emit warnings for additional unknown properties, but ignore them.
