@@ -1,9 +1,11 @@
-import { AlertFlow, AlertFlowDatagramType } from "$common/datagram/AlertFlow.js";
+import { AlertFlow } from "$common/datagram/AlertFlow.js";
 import { ConnectionTarget, RemoteInfo } from "$common/protocol/connection.js";
 import { TCPConnection } from "$common/protocol/tcp.js";
 import { DefaultLogger, getOrCreateGlobalLogger } from "$common/util/logger.js";
 import net from "net";
 import { BufferReader } from "$common/util/buffer.js";
+import { IgnoreValues } from "$common/datagram/spack.js";
+import { DatabaseDAO } from "$common/db/databaseDAO.js";
 
 const TCP_SERVER_EVENT_CLOSED = "__server_closed__";
 
@@ -17,14 +19,18 @@ class TCPServerConnection extends TCPConnection {
     protected _id: number;
     protected connected: boolean;
     protected closed: boolean;
+    private db: DatabaseDAO;
+    private dbMapper: Map<string, number>;
     public target: ConnectionTarget;
 
-    constructor(socket: net.Socket, id: number) {
+    constructor(socket: net.Socket, id: number, db: DatabaseDAO, dbMapper: Map<string, number>) {
         super(socket);
         
         this._id = id;
         this.connected = true;
         this.closed = false;
+        this.db = db;
+        this.dbMapper = dbMapper;
         this.target = new ConnectionTarget({
             address: socket.remoteAddress ?? "",
             family: <RemoteInfo["family"]>socket.remoteFamily ?? "IPv4",
@@ -64,7 +70,7 @@ class TCPServerConnection extends TCPConnection {
         this.logger.error(`TCP Server Socket #${this._id} got an error:`, err);
     }
     
-    protected onMessage(msg: Buffer): void {
+    protected async onMessage(msg: Buffer): Promise<void> {
         this.logger.info(`TCP Server Socket #${this._id} got message from target:`, msg.toString("utf8"));
         
         const reader = new BufferReader(msg);
@@ -75,26 +81,58 @@ class TCPServerConnection extends TCPConnection {
 
             if (reader.eof())  break;
             if (AlertFlow.verifySignature(reader)) {
-                const afRequest = AlertFlow.readAlertFlowDatagram(reader);
-                this.logger.info(afRequest);
+                const afRequest = AlertFlow.deserialize(reader, config.tasks);
+                const alertMetrics = afRequest.getMetrics();
 
-                const afResponse = new AlertFlow(
-                    afRequest.getAgentId(), 
-                    AlertFlowDatagramType.RESPONSE_ALERT,
-                    0 
-                );
+                if (alertMetrics.device_metrics) {
+                    for (const key in alertMetrics.device_metrics) {
+                        if (key !== "interface_stats") {
+                            const value = alertMetrics.device_metrics[key as keyof typeof alertMetrics.device_metrics];
 
-                // TODO: Ler o payload para perceber qual o alerta e o seu valor
-                // TODO: Adicionar na tabela das metricas desta task do device que executou
-                // TODO: e colocar o alerta como true e guardo o valor que arrebentou
-                // TODO: Log de que recebeu um alerta do device W da task X da metrica Y com valor Z 
+                            if (value && value !== IgnoreValues.s8) {
+                                this.logger.warn(`Got alert for metric '${key}' with value: ${value}`);
+                                await this.db.addMetricsToExisting(
+                                    <number> this.dbMapper.get(afRequest.getTaskId()), 
+                                    afRequest.getSessionId(), 
+                                    { [key] : { valor: <number>value, timestamp: new Date(), alert: true } }
+                                );
+                            }
+                        } else {
+                            for(const networkInterface in alertMetrics.device_metrics.interface_stats) {
+                                const value = alertMetrics.device_metrics.interface_stats[networkInterface];
 
-                this.send(afResponse.makeAlertFlowDatagram());
+                                if (value && value !== IgnoreValues.s8) {
+                                    this.logger.warn(`Got alert for metric '${key} in interface ${networkInterface} with value: ${value}`);
+                                    await this.db.addMetricsToExisting(
+                                        <number> this.dbMapper.get(afRequest.getTaskId()), 
+                                        afRequest.getSessionId(), 
+                                        { [key] : { valor: <number>value, timestamp: new Date(), alert: true } }
+                                    );
+                                }
+                            }
+                        }
+                    }
+                }
+
+                if (alertMetrics.link_metrics) {
+                    for (const key in alertMetrics.link_metrics) {
+                        let value = alertMetrics.link_metrics[key as keyof typeof alertMetrics.link_metrics] as number;
+
+                        if (value && value !== IgnoreValues.s16) {
+                            value = value - 1;
+                            this.logger.warn(`Added alert for key '${key} with value: ${value}`);
+                            await this.db.addMetricsToExisting(
+                                <number> this.dbMapper.get(afRequest.getTaskId()), 
+                                afRequest.getSessionId(), 
+                                { [key] : { valor: <number>value, timestamp: new Date(), alert: true } }
+                            );
+                        }
+                    }
+                }
+
+                this.logger.info("Alert inserted.");
             }
-
         }
-        
-        this.send(Buffer.from("Hello from TCP Server."));
     }
 
     /**
@@ -161,17 +199,23 @@ class TCPServer {
     protected dbMapper: Map<string, number>;
 
     /**
+     * Server database
+     */
+    private db: DatabaseDAO;
+
+    /**
      * A pointer to the fallback method used in case the "close" event is triggered by an external source 
      * in a non-gracious manner.
      */
     private _onClose: typeof this.onClose;
 
-    public constructor(dbMapper: Map<string,number>) {
+    public constructor(dbMapper: Map<string,number>, db: DatabaseDAO) {
         this.server = net.createServer();
         this.logger = getOrCreateGlobalLogger();
         this.seq = 0;
         this.connections = new Map();
         this.dbMapper = dbMapper;
+        this.db = db;
 
         this.server.on("listening", this.onListen.bind(this));
         this.server.on("close", (this._onClose = this.onClose.bind(this, 1000)));
@@ -249,7 +293,7 @@ class TCPServer {
         // TODO: Validar na base de dados se o device existe. Se não existir, é porque não fez o Registo pelo NetTask.
         // TODO: Portanto, fechar a conexão. Se existir, deixar passar.
 
-        const conn = new TCPServerConnection(socket, this.seq++);
+        const conn = new TCPServerConnection(socket, this.seq++, this.db, this.dbMapper);
         this.connections.set(this.seq, conn);
 
         this.logger.info("TCP Server got a new connection from:", conn.target.qualifiedName);

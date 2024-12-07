@@ -18,7 +18,7 @@ import { createAlertConditions, createLinkMetrics, createOptions, createTask, IO
 import { UDPServer } from "./protocol/udp.js";
 import { TCPServer } from "./protocol/tcp.js";
 import { ConnectionTarget } from "$common/protocol/connection.js";
-import { initWebServer } from "./web/index.js";
+// import { initWebServer } from "./web/index.js";
 
 //#region ============== Types ==============
 interface CLIOptions {
@@ -154,13 +154,13 @@ export async function serverInit(options: CLIOptions) {
     // Server setup
     const tcpCT = new ConnectionTarget(host, port);
     logger.info("TCP Target:", tcpCT.qualifiedName);
-    const tcpServer = new TCPServer(dbMapper);
+    const tcpServer = new TCPServer(dbMapper, db);
     tcpServer.listen(tcpCT);
 
     const udpServer = new UDPServer(db, dbMapper);
     udpServer.listen(port + 1);
 
-    initWebServer(options);
+    // initWebServer(options);
 }
 
 //#region ============== CLI ==============
