@@ -113,6 +113,10 @@ class NetTask {
     public getType(): NetTaskDatagramType { return this.type; }
     public getPayloadSize(): number { return this.payloadSize; }
 
+    public setNack(nack: number){
+        this.nacknowledgementNumber = nack;
+    }
+
     public toString(): string {
         // return  "--< NET TASK >--\n" +
         //         "  VERSION: " + this.version + "\n" +

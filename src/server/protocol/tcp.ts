@@ -85,6 +85,9 @@ class TCPServerConnection extends TCPConnection {
                 const alertMetrics = afRequest.getMetrics();
 
                 const device = await this.db.getDeviceBySession(afRequest.getSessionId());
+                if(!device){
+                    throw new Error(`Device does not exists`);
+                }
 
                 if (alertMetrics.device_metrics) {
                     for (const key in alertMetrics.device_metrics) {

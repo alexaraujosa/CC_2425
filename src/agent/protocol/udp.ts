@@ -152,8 +152,11 @@ class UDPClient extends UDPConnection {
                     const payloadReader = new BufferReader(payload);
                     const nt = NetTask.deserializePrivateHeader(payloadReader, pHeader);
                     
-                    // this.logger.info("UDP Agent header:", nt);
+                    this.logger.pLog(`---------- PACOTE RECEBIDO ----------`);
+                    this.logger.pLog(nt.toString());
+                    this.logger.pLog(`-------------------------------------`); 
 
+                    // this.logger.info("UDP Agent header:", nt);
                     try {
                         //Fragmentando tenho de criar o pacote
                         
@@ -168,23 +171,19 @@ class UDPClient extends UDPConnection {
                             break;
                         } else if (error instanceof OutOfOrderPackageError) {
                             this.logger.error("Out-of-order package:", error.message);
+                            
                             const retransmission = new NetTaskBodyless(
                                 pHeader.sessionId,
                                 this._flowControl.getLastSeq(),
-                                0,
+                                nt.getSequenceNumber(),
                                 this._flowControl.getLastAck() + 1,
                             );
                             this.send(retransmission);
-                            break;
                         } else {
                             this.logger.error("An unexpected error occurred:", error);
                             break;
                         }
                     }
-
-                    // this.logger.log(`---------- PACOTE RECEBIDO ----------`);
-                    // this.logger.log(nt.toString());
-                    // this.logger.log(`-------------------------------------`); 
 
                     switch (nt.getType()) {
                         /**
@@ -455,15 +454,17 @@ class UDPClient extends UDPConnection {
         try{
             const dgToSend = this._flowControl.controlledSend(dg);
             
-            if(dgToSend.getSequenceNumber() >= this._flowControl.getLastSeq()){
+            if(dgToSend.getSequenceNumber() === this._flowControl.getLastSeq()){
                 this._flowControl.readyToSend(dgToSend);
+            } else {
+                dgToSend.setNack(0);
             }
 
-            // this.logger.log(`---------- PACOTE ENVIADO ----------`);
-            // this.logger.log(dgToSend.toString());
-            // this.logger.log(`-------------------------------------`); 
+            this.logger.pLog(`---------- PACOTE ENVIADO ----------`);
+            this.logger.pLog(dgToSend.toString());
+            this.logger.pLog(`-------------------------------------`); 
             
-            if(dgToSend.getType() === NetTaskDatagramType.BODYLESS || dgToSend.getType() === NetTaskDatagramType.WAKE) {
+            if(dgToSend.getType() === NetTaskDatagramType.BODYLESS || dgToSend.getType() === NetTaskDatagramType.WAKE || dgToSend.getType() === NetTaskDatagramType.SEND_METRICS){
                 //@ts-expect-error STFU Typescript.
                 this.socket.send(dgToSend.serialize(), this.target.port, this.target.address);
                 return;

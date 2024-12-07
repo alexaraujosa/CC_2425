@@ -80,12 +80,14 @@ class UDPServer extends UDPConnection {
         try{
             const dgToSend = flowControl.controlledSend(dg);
             
-            // this.logger.log(`---------- PACOTE ENVIADO ----------`);
-            // this.logger.log(dgToSend.toString());
-            // this.logger.log(`-------------------------------------`); 
+            this.logger.pLog(`---------- PACOTE ENVIADO ----------`);
+            this.logger.pLog(dgToSend.toString());
+            this.logger.pLog(`-------------------------------------`); 
             
-            if(dgToSend.getSequenceNumber() >= flowControl.getLastSeq()){
+            if(dgToSend.getSequenceNumber() === flowControl.getLastSeq()){
                 flowControl.readyToSend(dgToSend);
+            } else {
+                dgToSend.setNack(0);
             }
 
             if(
@@ -180,8 +182,12 @@ class UDPServer extends UDPConnection {
                     const nt = NetTask.deserializePrivateHeader(payloadReader, pHeader);
                     _nt = nt;
 
-                    this.logger.log(`UDP Server header:`, nt);
+                    //this.logger.log(`UDP Server header:`, nt);
                     
+                    this.logger.pLog(`---------- PACOTE RECEBIDO ----------`);
+                    this.logger.pLog(nt.toString());
+                    this.logger.pLog(`-------------------------------------`); 
+
                     const client = this.clients.get(pHeader.sessionId.toString("hex"));
                     if(client){
                         try {
@@ -206,11 +212,10 @@ class UDPServer extends UDPConnection {
                                 const retransmission = new NetTaskBodyless(
                                     pHeader.sessionId,
                                     client.flowControl.getLastSeq(),
-                                    0,
+                                    nt.getSequenceNumber(),
                                     client.flowControl.getLastAck() + 1,
                                 );
                                 this.send(client.flowControl, retransmission, rinfo);
-                                break;
                             } else {
                                 this.logger.error("An unexpected error occurred:", error);
                                 break;
@@ -232,10 +237,6 @@ class UDPServer extends UDPConnection {
                             break;
                         }
                     }
-
-                    // this.logger.log(`---------- PACOTE RECEBIDO ----------`);
-                    // this.logger.log(nt.toString());
-                    // this.logger.log(`-------------------------------------`); 
 
                     switch (nt.getType()) {
 
@@ -540,7 +541,10 @@ class UDPServer extends UDPConnection {
                         }
                         case NetTaskDatagramType.WAKE: {
                             const client = this.clients.get(nt.getSessionId().toString("hex"));
-                            
+                            if(!client){
+                                throw new Error(`Agent not found!`);
+                            }
+
                             this.logger.info("[SERVER] Got Wake packet.");
                             try {
                                 // Ignore, because no real payload is sent, just a sanity test.
@@ -571,6 +575,20 @@ class UDPServer extends UDPConnection {
                             this.send(client!.flowControl, wakeDg, rinfo);
                             client!.flowControl.reset(newSeq);
                             // client!.flowControl.setLastSeq(newSeq);
+
+                            const cDevice = config.devices[this.devicesNames[rinfo.address]];
+                            const tasks = Object.fromEntries(Object.entries(config.tasks).filter(([k,_]) => cDevice.tasks.includes(k)));
+                            const spack = packTaskSchemas(tasks);
+                            const requestTaskDg = new NetTaskPushSchemas(
+                                nt.getSessionId(),
+                                client.flowControl.getLastSeq(), 
+                                client.flowControl.getLastAck(), 
+                                0, 
+                                false,
+                                0, 
+                                spack
+                            ).link(client!.ecdhe);
+                            this.send(client.flowControl, requestTaskDg, rinfo);
 
                             break;
                         }

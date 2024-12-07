@@ -185,7 +185,7 @@ class FlowControl{
     }
 
     private addToRecoveryList(dg: NetTask){
-        if(this.recoveryList.length <= 20){
+        if(this.recoveryList.length <= 500){
             this.recoveryList.push(dg);
         } else {
             this.recoveryList.shift();
@@ -227,21 +227,12 @@ class FlowControl{
         return this.preventDups.includes(nr); 
     }
 
-    private isNewConnection(dgType: NetTaskDatagramType){
-        return(dgType === NetTaskDatagramType.REQUEST_REGISTER);
-    }
-
     private isRetransmissionNecessary(nr: number){
-        return (nr > this.lastAck+1);
+        return (nr > this.lastAck+1 && !this.isDup(nr));
     }
 
     private addToPreventDups(nr: number){
-        if(this.preventDups.length <= 5){
-            this.preventDups.push(nr);
-        } else {
-            this.preventDups.shift();
-            this.preventDups.push(nr);
-        }
+        this.preventDups.push(nr);
     }
 
     /**
@@ -307,29 +298,30 @@ class FlowControl{
         }
 
         // Wake defines a new connection. If valid, will reset the current flow control and give a new sequence number.
-        if (dg.getType() === NetTaskDatagramType.WAKE) {
-            return isCorrect;
-        }
-        
-        if (this.isNewConnection(dg.getType())) {
-            this.reset();
-        }
+        //if (dg.getType() === NetTaskDatagramType.WAKE) {
+        //    return isCorrect;
+        //}
     
         if (this.isDup(dg.getSequenceNumber())) {
             throw new DuplicatedPackageError(dg.getSequenceNumber());
         }
     
         if (this.isRetransmissionNecessary(dg.getSequenceNumber())) {
+            this.addToPreventDups(dg.getSequenceNumber());
             throw new OutOfOrderPackageError(this.getLastAck() + 1, dg.getSequenceNumber());
         }
         
         this.clearTimer(dg.getAcknowledgementNumber());
 
         this.recoveryList = this.recoveryList.filter(
-            r => r.getAcknowledgementNumber() !== dg.getAcknowledgementNumber()
+            r => r.getSequenceNumber() !== dg.getAcknowledgementNumber()
         );
 
-        this.lastAck = dg.getSequenceNumber();
+        this.lastAck = this.lastAck+1;
+        while (this.preventDups.includes(this.lastAck+1)) {
+            this.lastAck = this.lastAck+1;
+        }
+        
         this.addToPreventDups(dg.getSequenceNumber());
         return isCorrect;
     }    

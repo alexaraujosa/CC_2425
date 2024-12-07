@@ -460,11 +460,10 @@ async function executeTask(
         logger.pInfo(`Metrics report for task '${taskConfigId}' ended.\n`);
 
         // Send metrics
-        const fwControl = udp.flowControl;
         const ntMetric = new NetTaskMetric(
             nt.getSessionId(),
-            fwControl.getLastSeq(),
-            fwControl.getLastAck(),
+            udp.flowControl.getLastSeq(),
+            udp.flowControl.getLastAck(),
             0,
             false,
             0,

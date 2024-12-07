@@ -45,10 +45,10 @@ function createMetrics(
     deviceID: number,
     metricas: string[]
 ): Partial<IMetrics> {
-    const metricsMap: { [metricName: string]: { metric: { value: number, timestamp: Date, alert: boolean }[] } } = {};
+    const metricsMap: IMetric = {};
     
     metricas.forEach(metricName => {
-        metricsMap[metricName] = {
+        metricsMap[<keyof IMetric> metricName] = {
             metric: []
         };
     });
