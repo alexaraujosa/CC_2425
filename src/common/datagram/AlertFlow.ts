@@ -8,16 +8,12 @@
  */
 
 import { BufferReader, BufferWriter } from "$common/util/buffer.js";
-import { getOrCreateGlobalLogger } from "$common/util/logger.js";
+import { dropEmpty } from "$common/util/object.js";
+import { deserializeTaskMetric, serializedTaskMetric, SPACKTaskMetric } from "./spack.js";
 
 //#region ============== Constants ==============
 const ALERT_FLOW_VERSION = 1;
 const ALERT_FLOW_SIGNATURE = Buffer.from("ATFW", "utf8");
-
-enum AlertFlowDatagramType {
-    REQUEST_ALERT,
-    RESPONSE_ALERT
-};
 //#endregion ============== Constants ==============
 
 /**
@@ -26,37 +22,39 @@ enum AlertFlowDatagramType {
  */
 class AlertFlow {
     private version: number;
-    private agentId: number;
-    private type: AlertFlowDatagramType;
-    private payloadSize: number;
+    private sessionId: Buffer;
+    private taskId: string;
+    private task: object;
+    private spack!: SPACKTaskMetric;
 
     public constructor(
-        agentId: number, 
-        type: AlertFlowDatagramType,
-        payloadSize: number
+        sessionId: Buffer,
+        taskId: string,
+        task: object,
+        spack: SPACKTaskMetric
     ) {
         this.version = ALERT_FLOW_VERSION;
-        this.agentId = agentId;
-        this.type = type;
-        this.payloadSize = payloadSize;
+        this.sessionId = sessionId;
+        this.taskId = taskId;
+        this.spack = dropEmpty(Object.fromEntries(Object.entries(spack)));
+        this.task = task;
     }
 
     public getVersion(): number { return this.version; }
-    public getAgentId(): number { return this.agentId; }
-    public getType(): AlertFlowDatagramType { return this.type; }
-    public getPayloadSize(): number { return this.payloadSize; }
+    public getSessionId(): Buffer { return this.sessionId; }
+    public getTaskId(): string { return this.taskId; }
+    public getMetrics(): SPACKTaskMetric { return this.spack; }
 
-    public toString(): string {
-        return  "--< ALERT FLOW >--\n" +
-                "  VERSION: " + this.version + "\n" +
-                "  AGENT_ID: " + this.agentId + "\n" +
-                "  TYPE: " + this.type + "\n" +
-                "  PAYLOAD_SIZE: " + this.payloadSize + "\n";
-    }
+    // public toString(): string {
+    //     return  "--< ALERT FLOW >--\n" +
+    //             "  VERSION: " + this.version + "\n" +
+    //             "  AGENT_ID: " + this.agentId + "\n" +
+    //             "  PAYLOAD_SIZE: " + this.payloadSize + "\n";
+    // }
 
     /**
      * First phase of the deserialization, used to verify the signature of an AlertFlow Datagram. 
-     * Should always be used before {@link readAlertFlowDatagram} method.
+     * Should always be used before {@link deserialize} method.
      * @param reader BufferReader instanciated with a message buffer received from the server.
      * @returns A boolean representing whether or not the signature is valid.
      */
@@ -71,39 +69,66 @@ class AlertFlow {
      * @param reader BufferReader instanciated with a message buffer received from the server.
      * @returns An AlertFlow instance representing the deserialized message.
      */
-    public static readAlertFlowDatagram(reader: BufferReader): AlertFlow {
-        // const reader = new BufferReader(buf, ALERT_FLOW_SIGNATURE.byteLength);
-        const logger = getOrCreateGlobalLogger();
+    public static deserialize(reader: BufferReader, configTasks: object): AlertFlow {
+        // const logger = getOrCreateGlobalLogger();
         const version = reader.readUInt32();
         if (version != ALERT_FLOW_VERSION) {
-            logger.pError(`ALERTFLOW Datagram Invalid Version. Excepted: ${ALERT_FLOW_VERSION}. Received: ${version}.`);
-            // TODO: Error handling. Don't forget to change the method onMessage from TCPServerConnection. 
-            // TODO: If this method returns null, you should adapt the onMessage method.
+            throw new Error(`ALERTFLOW Datagram Invalid Version. Excepted: ${ALERT_FLOW_VERSION}. Received: ${version}.`);
         }
 
-        const agentId = reader.readUInt32();
-        const type = reader.readUInt32();
-        const payloadSize = reader.readUInt32();
+        const sessionIdLen = reader.readUInt32();
+        const sessionId = reader.read(sessionIdLen);
+
+        const metric = { taskId: "", metrics: <SPACKTaskMetric>{} };
+        try {
+            const taskIdLen = reader.readUInt32();
+            metric.taskId = reader.read(taskIdLen).toString("utf8");
+
+            const spackLen = reader.readUInt32();
+            const rawSpack = reader.read(spackLen);
+
+            metric.metrics = deserializeTaskMetric(
+                rawSpack, 
+                // In order to not import stuff from server into common, we do this hack to simply accept whatever.
+                // It's the responsability of the user to guarantee this doesn't explode on their hands.
+                <never>(<Record<string, unknown>>configTasks)[<keyof typeof configTasks>metric.taskId]
+            );
+        } catch (e) {
+            throw new Error(`[NT_Metric] Malformed NetTaskMetric packet: Malformed schema payload.`, { cause: e });
+        }
     
-        return new AlertFlow(agentId, type, payloadSize);
+        return new AlertFlow(
+            sessionId,
+            metric.taskId,
+            <never>(<Record<string, unknown>>configTasks)[<keyof typeof configTasks>metric.taskId],
+            metric.metrics
+        );
     }
 
     /**
      * Serializes an {@link AlertFlow} object into network-transmittable buffers.
      */
-    public makeAlertFlowDatagram(): Buffer {
+    public serialize(): Buffer {
+        const pack = serializedTaskMetric(this.spack, <never>this.task);
+        
+        const taskLen = Buffer.alloc(4);
+        taskLen.writeUInt32BE(this.taskId.length);
+
+        const packLen = Buffer.alloc(4);
+        packLen.writeUInt32BE(pack.byteLength);
+        const payload = Buffer.concat([taskLen, Buffer.from(this.taskId, "utf8"), packLen, pack]);
+
         const writer = new BufferWriter();
         writer.write(ALERT_FLOW_SIGNATURE);
         writer.writeUInt32(this.version);
-        writer.writeUInt32(this.agentId);
-        writer.writeUInt32(this.type);
-        writer.writeUInt32(this.payloadSize);
+        writer.writeUInt32(this.sessionId.byteLength);
+        writer.write(this.sessionId);
+        writer.write(payload);
 
         return writer.finish();
     }
 }
 
 export {
-    AlertFlow, 
-    AlertFlowDatagramType
+    AlertFlow
 };
