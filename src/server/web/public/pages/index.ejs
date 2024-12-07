@@ -1,0 +1,75 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>AAAAAAAAAAAAAAAAAAAAAA</title>
+
+    <link rel="stylesheet" href="/public/css/index.css">
+    <!-- <script src="https://cdnjs.cloudflare.com/ajax/libs/dayjs/1.11.13/dayjs.min.js" integrity="sha512-FwNWaxyfy2XlEINoSnZh1JQ5TRRtGow0D6XcmAWmYCRgvqOUTnzCxPc9uF35u5ZEpirk1uhlPVA19tflhvnW1g==" crossorigin="anonymous" referrerpolicy="no-referrer"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/dayjs/1.11.13/plugin/relativeTime.min.js" integrity="sha512-MVzDPmm7QZ8PhEiqJXKz/zw2HJuv61waxb8XXuZMMs9b+an3LoqOqhOEt5Nq3LY1e4Ipbbd/e+AWgERdHlVgaA==" crossorigin="anonymous" referrerpolicy="no-referrer"></script>
+    <script>dayjs.extend(window.dayjs_plugin_relativeTime)</script> -->
+
+    <%- include("../components/imports") %>
+    <script src="/public/js/index.js"></script>
+</head>
+<body>
+    <div class="container" style="padding-left: 30px;">
+        <h1 class="title">Devices</h1>
+        <div class="grid grid-h3">
+            <% devices.forEach(device => { %>
+                <a class="cell card hover-zoom" href="/devices/<%= device.name ?? device.ip %>">
+                    <div class="card-title"><%= device.name ?? device.ip %></div>
+                    <div class="card-body">
+                        <div class="row">Status: 
+                            <div class="status-bulb <%= device.alive ? "" : "dead" %>"></div> 
+                            <%= device.alive ? "Alive" : "Dead" %>
+                        </div>
+                        <div class="row">
+                            <span style="padding-right: 5px;">Last seen: </span>
+                            <!-- <script>
+                            {
+                                // const s=Array.from(document.getElementsByTagName("script")).at(-1);
+                                // const d=document.createElement("div");
+                                // d.innerHTML = ((a)=>dayjs(a).fromNow())("< %= device.connectedAt.toISOString() %>");
+                                // s.parentNode.insertBefore(d,s);
+                                // s.remove();
+                                const s=Array.from(document.getElementsByTagName("script")).at(-1),
+                                d=document.createElement("div");
+                                d.innerHTML=dayjs("< %= device.connectedAt.toISOString() %>").fromNow(),
+                                s.parentNode.insertBefore(d,s)
+                                ,s.remove();
+                            }
+                            </script> -->
+                            <%- include("../components/immediate.ejs", { 
+                                    exec: `dayjs("${device.connectedAt.toISOString()}").fromNow()`
+                            }) %>
+                            </div>
+                    </div>
+                </a>
+            <% }) %>
+            <!-- <a class="cell card hover-zoom" href="/devices/device1">
+                <div class="card-title">Device 1</div>
+                <div class="card-body">
+                    <div class="row">Status: <div class="status-bulb dead"></div> Dead</div>
+                    <div class="row">Last seen: 01/01/2024</div>
+                </div>
+            </a>
+            <a class="cell card hover-zoom" href="/devices/device2">
+                <div class="card-title">Device 2</div>
+                <div class="card-body">
+                    <div class="row">Status: <div class="status-bulb"></div> Alive</div>
+                    <div class="row">Last seen: 02/02/2024</div>
+                </div>
+            </a>
+            <a class="cell card hover-zoom" href="/devices/device3">
+                <div class="card-title">Device 3</div>
+                <div class="card-body">
+                    <div class="row">Status: <div class="status-bulb dead"></div> Dead</div>
+                    <div class="row">Last seen: 03/03/2024</div>
+                </div>
+            </a> -->
+        </div>
+    </div>
+</body>
+</html>

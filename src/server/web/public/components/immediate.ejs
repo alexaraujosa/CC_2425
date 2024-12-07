@@ -1,0 +1,12 @@
+<!-- < %- include("../components/imports") %> -->
+
+<script>
+    {
+        const s=Array.from(document.getElementsByTagName("script")).at(-1),
+        d=document.createElement("div");
+        // d.innerHTML=< %- useEval ? `eval(${exec})` : exec %>,
+        d.innerHTML=<%- exec %>,
+        s.parentNode.insertBefore(d,s),
+        s.remove();
+    }
+</script>

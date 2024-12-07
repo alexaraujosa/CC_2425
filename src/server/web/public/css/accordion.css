@@ -1,0 +1,104 @@
+.accordion-tab {
+    position: relative;
+}
+
+.accordion-tab input {
+    position: absolute;
+    opacity: 0;
+    z-index: -1;
+}
+
+.accordion-tab-content {
+    max-height: 0;
+    overflow: hidden;
+    transition: all 0.35s;
+}
+
+.accordion-tab input:checked~.accordion-tab-content {
+    /* max-height: 10rem; */
+    --private-accordion-max-height: var(--accordion-max-height, 10rem);
+    /* max-height: 10rem; */
+    max-height: var(--private-accordion-max-height);
+    overflow-y: auto;
+}
+
+/* Visual styles */
+.accordion {
+    color: var(--theme);
+    border: #aaaaaa 2px solid;
+    border-radius: 0.5rem;
+    overflow: hidden;
+}
+
+.accordion-tab-label,
+.accordion-tab-close {
+    display: flex;
+    color: black;
+    background: var(--theme);
+    cursor: pointer;
+}
+
+.accordion-tab-label {
+    justify-content: space-between;
+    padding: 1rem;
+}
+
+.accordion > .accordion-tab:not(:first-child) > .accordion-tab-label {
+    border-top: #aaaaaa 2px solid;
+}
+.accordion-tab .accordion-tab-label {
+    --rotation: 0deg;
+    border-bottom: #aaaaaa 2px solid;
+}
+
+.accordion-tab-label::after {
+    font-family: boxicons;
+    font-size: 1.25rem;
+    content: "\ed35";
+    width: 1em;
+    height: 1em;
+    text-align: center;
+    transform: rotate(var(--rotation));
+    transition: all 0.35s;
+}
+
+.accordion-tab input:checked+.accordion-tab-label::after {
+    transform: rotate(90deg);
+}
+
+.accordion-tab-content > * {
+    margin: 0;
+    padding: 1rem;
+}
+
+.accordion-tab-close {
+    justify-content: flex-end;
+    padding: 0.5rem 1rem;
+    font-size: 0.75rem;
+}
+
+.accordion--radio {
+    --theme: var(--secondary);
+}
+
+/* Arrow animation */
+.accordion-tab input:not(:checked)+.accordion-tab-label:hover::after {
+    animation: bounce .5s infinite;
+}
+
+@keyframes bounce {
+    25% {
+        /* transform: rotate(var(--rotation)) translate(.25rem); */
+        transform: translate(0, .25rem);
+    }
+
+    75% {
+        /* transform: rotate(var(--rotation)) translate(-.25rem); */
+        transform: translate(0, -.25rem);
+    }
+
+    100% {
+        /* transform: rotate(var(--rotation)) translate(-.25rem); */
+        transform: translate(0, 0);
+    }
+}

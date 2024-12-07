@@ -1,0 +1,148 @@
+/* .metric-kind {
+    background: green;
+    width: 20px;
+    height: 20px;
+    text-align: center;
+    color: white;
+    border-radius: 5px;
+    border: #000 solid 1px;
+    margin-right: 5px;
+
+    &::after {
+        content: "M";
+    }
+}
+
+.metric-kind.alert {
+    background: red;
+
+    &::after {
+        content: "A";
+    }
+}
+
+.property {
+    padding: 0 0 0 20px;
+}
+
+.cell.nested {
+    & > .property-title {
+        padding-left: 10px;
+    }
+
+    &::before {
+        display: unset;
+        opacity: 0;
+        position: absolute;
+        content: "└─";
+        width: 50px;
+        height: 20px;
+        color: black;
+        z-index: 99;
+        transform: translateX(-20px);
+        transition: opacity 0.35s;
+    }
+
+    &:first-child {
+        &::after {
+            display: unset;
+            opacity: 0;
+            position: absolute;
+            content: "┐";
+            width: 50px;
+            height: 20px;
+            color: black;
+            z-index: 99;
+            transform: translate(-20px, -10px);
+            transition: opacity 0.35s;
+        }
+    }
+}
+.accordion-tab:has(input:checked+.accordion-tab-label) > .accordion-tab-content > div > .cell > div > div .cell.nested {
+    &:not(:last-child) {
+        &::before {
+            content: "├─"
+        }
+    }
+
+    &::before {
+        display: unset;
+        opacity: 100%;
+    }
+
+    &::after {
+        display: unset;
+        opacity: 100%;
+    }
+} */
+
+.metric-kind {
+    background: green;
+    width: 20px;
+    height: 20px;
+    text-align: center;
+    color: white;
+    border-radius: 5px;
+    border: #000 solid 1px;
+    margin-right: 5px;
+}
+
+.metric-kind::after {
+    content: "M";
+}
+
+.metric-kind.alert {
+    background: red;
+}
+
+.metric-kind.alert::after {
+    content: "A";
+}
+
+.property {
+    padding: 0 0 0 20px;
+}
+
+.cell.nested>.property-title {
+    padding-left: 10px;
+}
+
+.cell.nested::before {
+    display: unset;
+    opacity: 0;
+    position: absolute;
+    content: "└─";
+    width: 50px;
+    height: 20px;
+    color: black;
+    z-index: 99;
+    transform: translateX(-20px);
+    transition: opacity 0.35s;
+}
+
+.cell.nested:first-child::after {
+    display: unset;
+    opacity: 0;
+    position: absolute;
+    content: "┐";
+    width: 50px;
+    height: 20px;
+    color: black;
+    z-index: 99;
+    transform: translate(-20px, -10px);
+    transition: opacity 0.35s;
+}
+
+.accordion-tab:has(input:checked + .accordion-tab-label)>.accordion-tab-content>div>.cell>div>div .cell.nested:not(:last-child)::before {
+    content: "├─";
+}
+
+.accordion-tab:has(input:checked + .accordion-tab-label)>.accordion-tab-content>div>.cell>div>div .cell.nested::before {
+    display: unset;
+    opacity: 100%;
+}
+
+.accordion-tab:has(input:checked + .accordion-tab-label)>.accordion-tab-content>div>.cell>div>div .cell.nested::after {
+    display: unset;
+    opacity: 100%;
+}

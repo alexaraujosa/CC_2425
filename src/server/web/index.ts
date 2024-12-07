@@ -6,7 +6,7 @@ import { createLogger, Levels } from "$common/util/logger.js";
 import { getCallerFilePathAndPosition } from "$common/util/getCaller.js";
 import { loggerFormatDate } from "$common/util/date.js";
 import webOptions, { WEB_LOGGER_LEVELS, WebLoggerInitArg } from "./webConfig.js";
-import { CLIOptions } from "../index.js";
+import { CLIOptions, ServerSharedData } from "../index.js";
 import { makeLocations } from "$common/util/paths.js";
 
 // Add Middleware imports here
@@ -14,10 +14,11 @@ import loggerMiddleware from "./middlewares/logger.js";
 
 // Add Router imports here
 import mainRouter from "./routes/main.js";
+import { DatabaseDAO } from "$common/db/databaseDAO.js";
 
 const { dirname: __dirname } = makeLocations(import.meta.url);
 
-function initWebServer(options: CLIOptions): express.Express {
+function initWebServer(options: CLIOptions, db: DatabaseDAO, sharedData: ServerSharedData): express.Express {
     const logger = createLogger(WEB_LOGGER_LEVELS, { debug: options.debug, printCallerFile: options.debug });
 
     // Override logger logging function. 
@@ -30,7 +31,7 @@ function initWebServer(options: CLIOptions): express.Express {
         outMsg += `[${loggerFormatDate(new Date())}] [${this.levels[level].name.toUpperCase()}]`;
 
         const initArg: WebLoggerInitArg | undefined = <WebLoggerInitArg>args[0];
-        if (typeof initArg === "object") {
+        if (typeof initArg === "object" && initArg.req) {
             outMsg += ` [${chalk.magenta(initArg.req.method)} ${chalk.green(initArg.res?.statusCode ?? "N/A")}`
                 + ` ${chalk.yellow(initArg.req.url)}] |`;
 
@@ -49,7 +50,11 @@ function initWebServer(options: CLIOptions): express.Express {
     };
     webOptions.logger = logger;
 
+    webOptions.db = db;
+    webOptions.sharedData = sharedData;
+
     const app = express();
+    app.set("view engine", "ejs");
     app.use(express.urlencoded({ extended: true }), express.json());
 
     logger.info(`Preparing static files from ${path.join(__dirname, "./public")}...`);

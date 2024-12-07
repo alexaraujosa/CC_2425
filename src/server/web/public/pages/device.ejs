@@ -1,0 +1,115 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Device <%= name %></title>
+
+    <link rel="stylesheet" href="/public/css/index.css">
+    <link rel="stylesheet" href="/public/css/device.css">
+    <link rel="stylesheet" href="/public/css/accordion.css">
+    <link href="https://unpkg.com/boxicons@2.1.4/css/boxicons.min.css" rel="stylesheet">
+
+    <%- include("../components/imports") %>
+    <script src="/public/js/index.js"></script>
+</head>
+<body>
+    <div class="container">
+        <div class="cell card" style="width: 100%;">
+            <div class="card-title title medium flex" style="justify-content: space-between;">
+                <div><%= name ?? ip %></div> 
+                <a href="/"><i class='bx bx-home-alt'></i></a>
+            </div>
+            <div class="card-body">
+                <div class="row">Status: 
+                    <div class="status-bulb <%= alive ? "" : "dead" %>"></div> 
+                    <%= alive ? "Alive" : "Dead" %>
+                </div>
+                <div class="row">
+                    <span style="padding-right: 5px;">Last seen: </span>
+                    <%- include("../components/immediate.ejs", { 
+                        exec: `dayjs("${connectedAt.toISOString()}").fromNow()`
+                    }) %>
+                </div>
+                <div class="row">
+                    <span style="padding-right: 5px;">Last known IP: </span>
+                    <%= ip %>
+                </div>
+            </div>
+            <div class="card-body">
+                <section class="accordion">
+                    <div class="accordion-tab">
+                        <input type="checkbox" name="accordion-1" id="metrics">
+                        <label for="metrics" class="accordion-tab-label title">Metrics</label>
+                        <div class="accordion-tab-content" id="metrics-container" style="--accordion-max-height: 50vh;">
+                            <div>
+                                <section class="accordion">
+                                    <% for( let i = 0; i < metrics.length; i++ ) { %>
+                                        <div class="accordion-tab">
+                                            <input type="checkbox" name="accordion-1" id="metric-<%= i %>">
+                                            <label for="metric-<%= i %>" class="accordion-tab-label title">
+                                                <div class="flex">
+                                                    <span class="metric-kind <%= metrics[i].alert ? "alert" : "" %>"></span>
+                                                    <span style="padding-right: 5px;">Metric <%= i + 1 %> - </span>
+                                                    <%- include("../components/immediate.ejs", { 
+                                                        exec: `dayjs("${metrics[i].timestamp.toISOString()}").format("DD/MM/YYYY hh:mm:ss")`
+                                                    }) %>
+                                                </div>
+                                            </label>
+                                            <div class="accordion-tab-content">
+                                                <div class="grid grid-h1">
+                                                    <div class="cell flex flex-left property"><strong class="property-title">Task:</strong><div><%= metrics[i].task %></div></div>
+                                                    <div class="cell flex flex-left property"><strong class="property-title">Alert:</strong><div><%= metrics[i].alert %></div></div>
+                                                    <div class="cell flex flex-left flex-top property">
+                                                        <strong class="property-title">Value:</strong>
+                                                        <div style="padding-top: 10px;">
+                                                            <div class="grid grid-h1">
+                                                                <% for (const metric in metrics[i].values) { %>
+                                                                    <% if (typeof metrics[i].values[metric] === "object") { %>
+                                                                        <div class="cell flex flex-left flex-top property nested">
+                                                                            <strong class="property-title"><%= metric %>:</strong>
+                                                                            <div style="padding-top: 10px;">
+                                                                                <div class="grid grid-h1">
+                                                                                    <% for (const key in metrics[i].values[metric]) { %>
+                                                                                        <div class="cell flex flex-left property nested"><strong class="property-title"><%= key %>:</strong><div><%= metrics[i].values[metric][key] %></div></div>
+                                                                                    <% } %>
+                                                                                </div>
+                                                                            </div>
+                                                                        </div>
+                                                                    <% } else {%>
+                                                                        <div class="cell flex flex-left property nested"><strong class="property-title"><%= metric %>:</strong><div><%= metrics[i].values[metric] %></div></div>
+                                                                    <% } %>
+                                                                <% } %>
+                                                            </div>
+                                                        </div>
+                                                    </div>
+                                                </div>
+                                            </div>
+                                        </div>
+                                    <% } %>
+                                </section>
+                            </div>
+                        </div>
+                    </div>
+                    <!-- <div class="accordion-tab">
+                        <input type="checkbox" name="accordion-1" id="sessions">
+                        <label for="sessions" class="accordion-tab-label title">Sessions</label>
+                        <div class="accordion-tab-content" id="sessions-container">
+                            <p>
+                                TODO: Modify database to keep list of all ips, in the form
+                                <code>
+                                    {
+                                        ip: string,
+                                        port: number,
+                                        connectedAt: Date
+                                    }
+                                </code>
+                            </p>
+                        </div>
+                    </div> -->
+                </section>
+            </div>
+        </div>
+    </div>
+</body>
+</html>
