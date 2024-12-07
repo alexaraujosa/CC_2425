@@ -64,7 +64,7 @@ export async function agentInit(options: CLIOptions) {
     // tcpClient.send(al.makeAlertFlowDatagram());
     // tcpClient.send(al2.makeAlertFlowDatagram());
 
-    const udpClient = new UDPClient(options.keystore);
+    const udpClient = new UDPClient(options.keystore, tcpClient);
     udpClient.connect(new ConnectionTarget(host, port + 1));
 
     // udpClient.send(Buffer.from("Hello from UDP Client."));
