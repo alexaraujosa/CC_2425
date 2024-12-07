@@ -18,6 +18,7 @@ import { createAlertConditions, createLinkMetrics, createOptions, createTask, IO
 import { UDPServer } from "./protocol/udp.js";
 import { TCPServer } from "./protocol/tcp.js";
 import { ConnectionTarget } from "$common/protocol/connection.js";
+import { initWebServer } from "./web/index.js";
 // import { initWebServer } from "./web/index.js";
 
 //#region ============== Types ==============
@@ -25,6 +26,11 @@ interface CLIOptions {
     debug: boolean,
     host: string,
     port: number
+}
+
+interface ServerSharedData {
+    dbMapper: Map<string, number>,
+    connectionStatus: Record<string, Date>
 }
 //#endregion ============== Types ==============
 
@@ -46,8 +52,8 @@ export async function serverInit(options: CLIOptions) {
     const port = options.port;
 
     // Config loader
-    const json = await initConfig("docs/assets/config.json");
-    // const json = await initConfig("tmp/config.json");
+    // const json = await initConfig("docs/assets/config.json");
+    const json = await initConfig("tmp/config.json");
     logger.info(json);
 
     const db = new DatabaseDAO();
@@ -151,16 +157,21 @@ export async function serverInit(options: CLIOptions) {
     logger.pInfo("Database initial setup completed.");
     // await dbTester();
 
+    const sharedData: ServerSharedData = {
+        dbMapper: dbMapper,
+        connectionStatus: <ServerSharedData["connectionStatus"]>{}
+    };
+
     // Server setup
     const tcpCT = new ConnectionTarget(host, port);
     logger.info("TCP Target:", tcpCT.qualifiedName);
     const tcpServer = new TCPServer(dbMapper, db);
     tcpServer.listen(tcpCT);
 
-    const udpServer = new UDPServer(db, dbMapper);
+    const udpServer = new UDPServer(db, sharedData);
     udpServer.listen(port + 1);
 
-    // initWebServer(options);
+    initWebServer(options, db, sharedData);
 }
 
 //#region ============== CLI ==============
@@ -185,5 +196,6 @@ if (isBinMode(import.meta.url)) {
 //#endregion ============== CLI ==============
 
 export {
-    type CLIOptions
+    type CLIOptions,
+    type ServerSharedData
 };

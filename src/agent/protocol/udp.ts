@@ -463,7 +463,7 @@ class UDPClient extends UDPConnection {
             // this.logger.log(dgToSend.toString());
             // this.logger.log(`-------------------------------------`); 
             
-            if(dgToSend.getType() === NetTaskDatagramType.BODYLESS || dgToSend.getType() === NetTaskDatagramType.WAKE){
+            if(dgToSend.getType() === NetTaskDatagramType.BODYLESS || dgToSend.getType() === NetTaskDatagramType.WAKE) {
                 //@ts-expect-error STFU Typescript.
                 this.socket.send(dgToSend.serialize(), this.target.port, this.target.address);
                 return;
@@ -476,13 +476,16 @@ class UDPClient extends UDPConnection {
                 this.handleTimeout(seq);
             }); 
         } catch (error) {
-            if ( error instanceof ReachedMaxWindowError)
+            if (error instanceof ReachedMaxWindowError) {
+                this.logger.warn(`Reached maximum window limit. Halting queue.`);
                 return;
-            if ( error instanceof MaxRetransmissionsReachedError){
+            } else if (error instanceof MaxRetransmissionsReachedError) {
                 this.logger.warn("Agent is not responding to meeee...");
                 this.socket.close();
                 process.emit("SIGINT");
                 return;
+            } else {
+                this.logger.error("Unknown error:", { cause: error });
             }
         }
     }

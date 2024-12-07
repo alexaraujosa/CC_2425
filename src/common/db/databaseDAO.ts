@@ -10,13 +10,13 @@ import mongoose, { Model } from "mongoose";
 import { IDevice } from "./interfaces/IDevice.js";
 import { ITask } from "./interfaces/ITask.js";
 import { getOrCreateGlobalLogger } from "$common/util/logger.js";
-import { addMetrics, IMetric, IMetrics } from "./interfaces/IMetrics.js";
+import { addMetrics, createMetrics, IMetric, IMetrics } from "./interfaces/IMetrics.js";
 import deviceModel from "./models/deviceModel.js";
 import taskModel from "./models/taskModel.js";
 import metricsModel from "./models/IMetricsModel.js";
 
-const MONGO_URL = "mongodb://localhost:27017/CCDatabase";
-//const MONGO_URL = "mongodb://192.168.56.101:27017/CCDatabase";
+// const MONGO_URL = "mongodb://localhost:27017/CCDatabase";
+const MONGO_URL = "mongodb://192.168.56.101:27017/CCDatabase";
 
 /**
  * A Data access object that establishes connection with a MongoDB database,
@@ -59,6 +59,15 @@ class DatabaseDAO {
     }
 
     //#region ============== Device Operations ==============
+    public async getAllDevices(): Promise<IDevice[]> {
+        try {
+            const devices = await this.deviceModel.find();
+            return devices;
+        } catch (e) {
+            throw Error(`Error fetching devices from database.`, { cause: e });
+        }
+    }
+
     /**
      * Creates a new device in the database or updates an existing device's connection time if it exists.
      * @param {Partial<IDevice>} values - The data for the new device.
@@ -265,6 +274,17 @@ class DatabaseDAO {
      * @param {number} taskID - The ID of the task.
      * @param {number} deviceID - The session ID of the device.
      * @returns {Promise<IMetrics | null>} The metrics data, or null if not found.
+     */
+    public async hasMetrics(taskID: number, deviceID: number): Promise<boolean> {
+        const metrics = await this.metricsModel.findOne({ taskID, deviceID });
+        return !!metrics;
+    }
+
+    /**
+     * Retrieves a metrics entry by taskID and deviceID.
+     * @param {number} taskID - The ID of the task.
+     * @param {number} deviceID - The session ID of the device.
+     * @returns {Promise<IMetrics | null>} The metrics data, or null if not found.
      * @throws Throws an error when fetching the object does not succeds.
      */
     public async getMetrics(taskID: number, deviceID: number): Promise<IMetrics | null> {
@@ -291,17 +311,24 @@ class DatabaseDAO {
         try {
             const existingMetrics = await this.metricsModel.findOne({ taskID, deviceID });
 
+            this.logger.log("aMTE:", taskID, deviceID);
+            this.logger.log("aMTE:", existingMetrics, "|", newMetrics, "|", new Error().stack);
+
             if (!existingMetrics) {
-                throw new Error("Metrics entry not found.");
+                // throw new Error("Metrics entry not found.");
+                const metrics = createMetrics(taskID, deviceID, []);
+                metrics.metrics = newMetrics;
+
+                return await this.storeMetrics(metrics);
+            } else {
+                // Use the existing addMetrics function to update the metrics
+                addMetrics(existingMetrics, newMetrics);
+
+                // Save the updated metrics entry
+                existingMetrics.markModified("metrics");
+                await existingMetrics.save();
+                return existingMetrics;
             }
-
-            // Use the existing addMetrics function to update the metrics
-            addMetrics(existingMetrics, newMetrics);
-
-            // Save the updated metrics entry
-            existingMetrics.markModified("metrics");
-            await existingMetrics.save();
-            return existingMetrics;
         } catch (error) {
             this.logger.error(error);
             throw new Error("Failed to add metrics.");

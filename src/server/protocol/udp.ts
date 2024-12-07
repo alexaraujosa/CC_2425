@@ -10,6 +10,7 @@ import { IgnoreValues, packTaskSchemas } from "$common/datagram/spack.js";
 import { createMetrics } from "$common/db/interfaces/IMetrics.js";
 import { DuplicatedPackageError, FlowControl, MaxRetransmissionsReachedError, OutOfOrderPackageError, ReachedMaxWindowError } from "$common/protocol/flowControl.js";
 import { subscribeShutdown } from "$common/util/shutdown.js";
+import { ServerSharedData } from "../index.js";
 
 interface ClientData {
     flowControl: FlowControl, 
@@ -33,16 +34,16 @@ class UDPServer extends UDPConnection {
     private db: DatabaseDAO;
     private devicesNames: Record<string, string>;
     private sessionIds: Record<string, Buffer>;
-    private dbMapper: Map<string, number>;
+    private sharedData: ServerSharedData;
 
-    public constructor(db: DatabaseDAO, dbMapper: Map<string, number>) {
+    public constructor(db: DatabaseDAO, sharedData: ServerSharedData) {
         super();
 
         this.clients = new Map();
         this.db = db;
         this.devicesNames = Object.fromEntries(Object.entries(config.devices).map(([k,v]) => [v.ip, k]));
         this.sessionIds = {};
-        this.dbMapper = dbMapper;
+        this.sharedData = sharedData;
 
         subscribeShutdown(async () => {
             
@@ -394,7 +395,7 @@ class UDPServer extends UDPConnection {
                             const tasks = Object.fromEntries(Object.entries(config.tasks).filter(([k,_]) => cDevice.tasks.includes(k)));
 
                             for (const [taskConfigId, task] of Object.entries(tasks)) {
-                                const taskDatabaseId = this.dbMapper.get(taskConfigId);
+                                const taskDatabaseId = this.sharedData.dbMapper.get(taskConfigId);
                                 const metrics: string[] = [];
                                 for (const key in task.device_metrics)
                                     if (task.device_metrics[key as keyof typeof task.device_metrics])
@@ -460,7 +461,7 @@ class UDPServer extends UDPConnection {
 
                             this.logger.info(metricsResult);
                             
-                            this.logger.pInfo(`Metrics report from Agent with device '${device.id}' task '${metricsDg.getTaskId()}':`);
+                            this.logger.pInfo(`Metrics report from Agent with device '${device.id}':`);
 
                             const metricsDb: {
                                 [metricName: string]: 
@@ -526,10 +527,10 @@ class UDPServer extends UDPConnection {
                                 }
                             }
 
-                            this.logger.pInfo(`Metrics report from Agent with device '${device.id}' task '${metricsDg.getTaskId()}' ended.\n`);
+                            this.logger.pInfo(`Metrics report from Agent with device '${device.id}' ended.\n`);
 
                             await this.db.addMetricsToExisting(
-                                <number> this.dbMapper.get(metricsDg.getTaskId()),
+                                <number> this.sharedData.dbMapper.get(metricsDg.getTaskId()),
                                 <number> device?.id,
                                 metricsDb
                             );

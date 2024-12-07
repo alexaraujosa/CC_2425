@@ -95,7 +95,7 @@ class TCPServerConnection extends TCPConnection {
                                 this.logger.pWarn(`Alert from Agent with device '${device?.id}' task '${afRequest.getTaskId()}' on metric '${key}': ${value}`);
                                 await this.db.addMetricsToExisting(
                                     <number> this.dbMapper.get(afRequest.getTaskId()), 
-                                    <number> device?.id, 
+                                    device!.id, 
                                     { [key] : { valor: <number>value, timestamp: new Date(), alert: true } }
                                 );
                             }
@@ -125,7 +125,7 @@ class TCPServerConnection extends TCPConnection {
                             this.logger.pWarn(`Alert from Agent with device '${device?.id}' task '${afRequest.getTaskId()}' on metric '${key}: ${value}`);
                             await this.db.addMetricsToExisting(
                                 <number> this.dbMapper.get(afRequest.getTaskId()), 
-                                <number> device?.id, 
+                                device!.id, 
                                 { [key] : { valor: <number>value, timestamp: new Date(), alert: true } }
                             );
                         }

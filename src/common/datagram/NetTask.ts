@@ -955,9 +955,9 @@ class NetTaskMetric extends NetTask {
             throw new Error(`[NT_PushSchemas] Serialization Error: Datagram not linked against an ECDHE instance.`);
         }
 
+        this.logger.log("[NT_PushSchemas] PACK ARGS:", this.spack, this.task);
         const pack = serializeTaskMetric(this.spack, <never>this.task);
-        // this.logger.log("[NT_PushSchemas] PACK ARGS:", this.spack, this.task);
-        // this.logger.log("[NT_PushSchemas] PACK:", pack, pack.byteLength);
+        this.logger.log("[NT_PushSchemas] PACK:", pack, pack.byteLength);
 
         const taskLen = Buffer.alloc(4);
         taskLen.writeUInt32BE(this.taskId.length);
