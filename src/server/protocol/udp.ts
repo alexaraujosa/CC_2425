@@ -442,6 +442,7 @@ class UDPServer extends UDPConnection {
                                 throw new Error(`Agent not found!`);
                             }
                             const metricsDg = NetTaskMetric.deserialize(payloadReader, client!.ecdhe!, nt, config.tasks);
+                            const device = await this.db.getDeviceBySession(nt.getSessionId());
 
                             const ack = new NetTaskBodyless(
                                 nt.getSessionId(),
@@ -509,7 +510,7 @@ class UDPServer extends UDPConnection {
 
                             await this.db.addMetricsToExisting(
                                 <number> this.dbMapper.get(metricsDg.getTaskId()),
-                                nt.getSessionId(),
+                                <number> device?.id,
                                 metricsDb
                             );
 

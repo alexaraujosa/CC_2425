@@ -84,6 +84,8 @@ class TCPServerConnection extends TCPConnection {
                 const afRequest = AlertFlow.deserialize(reader, config.tasks);
                 const alertMetrics = afRequest.getMetrics();
 
+                const device = await this.db.getDeviceBySession(afRequest.getSessionId());
+
                 if (alertMetrics.device_metrics) {
                     for (const key in alertMetrics.device_metrics) {
                         if (key !== "interface_stats") {
@@ -93,23 +95,23 @@ class TCPServerConnection extends TCPConnection {
                                 this.logger.warn(`Got alert for metric '${key}' with value: ${value}`);
                                 await this.db.addMetricsToExisting(
                                     <number> this.dbMapper.get(afRequest.getTaskId()), 
-                                    afRequest.getSessionId(), 
+                                    <number> device?.id, 
                                     { [key] : { valor: <number>value, timestamp: new Date(), alert: true } }
                                 );
                             }
                         } else {
-                            for(const networkInterface in alertMetrics.device_metrics.interface_stats) {
-                                const value = alertMetrics.device_metrics.interface_stats[networkInterface];
+                            // for(const networkInterface in alertMetrics.device_metrics.interface_stats) {
+                            //     const value = alertMetrics.device_metrics.interface_stats[networkInterface];
 
-                                if (value && value !== IgnoreValues.s8) {
-                                    this.logger.warn(`Got alert for metric '${key} in interface ${networkInterface} with value: ${value}`);
-                                    await this.db.addMetricsToExisting(
-                                        <number> this.dbMapper.get(afRequest.getTaskId()), 
-                                        afRequest.getSessionId(), 
-                                        { [key] : { valor: <number>value, timestamp: new Date(), alert: true } }
-                                    );
-                                }
-                            }
+                            //     if (value && value !== IgnoreValues.s8) {
+                            //         this.logger.warn(`Got alert for metric '${key} in interface ${networkInterface} with value: ${value}`);
+                            //         await this.db.addMetricsToExisting(
+                            //             <number> this.dbMapper.get(afRequest.getTaskId()), 
+                            //             <number> device?.id, 
+                            //             { [key] : { valor: <number>value, timestamp: new Date(), alert: true } }
+                            //         );
+                            //     }
+                            // }
                         }
                     }
                 }
@@ -123,7 +125,7 @@ class TCPServerConnection extends TCPConnection {
                             this.logger.warn(`Added alert for key '${key} with value: ${value}`);
                             await this.db.addMetricsToExisting(
                                 <number> this.dbMapper.get(afRequest.getTaskId()), 
-                                afRequest.getSessionId(), 
+                                <number> device?.id, 
                                 { [key] : { valor: <number>value, timestamp: new Date(), alert: true } }
                             );
                         }

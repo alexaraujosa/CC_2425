@@ -292,6 +292,8 @@ async function executeCommand(
                     ).then( (metricResult) => {
                         if (metricResult !== IgnoreValues.s16) {
                             result[metric] = metricResult + 1;
+                        } else {
+                            result[metric] = metricResult;
                         }
                     })
                 );
@@ -306,13 +308,15 @@ async function executeCommand(
                     ).then ( (metricResult) => {
                         if (metricResult !== IgnoreValues.s16) {
                             result[metric] = metricResult + 1;
+                        } else {
+                            result[metric] = metricResult;
                         }
                     })
                 );
             }
         }
     }
-    
+
     await Promise.allSettled(promises);
 
     return result;
@@ -407,7 +411,7 @@ async function executeTask(
 
             const spack: SPACKTaskMetric = createSPACKTaskMetricForAlert(
                 "latency", 
-                linkMetrics.latency === IgnoreValues.s16 ? 10000 : linkMetrics.latency, // 10000 means Target Unreachable
+                linkMetrics.latency === IgnoreValues.s16 ? 10001 : linkMetrics.latency, // 10001 means Target Unreachable
                 interfaceDefaultAlert
             );
             const alMetric = new AlertFlow(
@@ -428,7 +432,7 @@ async function executeTask(
         ) {
             const spack: SPACKTaskMetric = createSPACKTaskMetricForAlert(
                 "packet_loss", 
-                linkMetrics.packet_loss === IgnoreValues.s16 ? 100 : linkMetrics.packet_loss, // 100 means Target Unreachable
+                linkMetrics.packet_loss === IgnoreValues.s16 ? 101 : linkMetrics.packet_loss, // 101 means Target Unreachable
                 interfaceDefaultAlert
             );
             const alMetric = new AlertFlow(
