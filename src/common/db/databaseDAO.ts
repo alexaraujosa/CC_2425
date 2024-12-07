@@ -15,8 +15,8 @@ import deviceModel from "./models/deviceModel.js";
 import taskModel from "./models/taskModel.js";
 import metricsModel from "./models/IMetricsModel.js";
 
-//const MONGO_URL = "mongodb://localhost:27017/CCDatabase";
-const MONGO_URL = "mongodb://192.168.56.101:27017/CCDatabase";
+const MONGO_URL = "mongodb://localhost:27017/CCDatabase";
+//const MONGO_URL = "mongodb://192.168.56.101:27017/CCDatabase";
 
 /**
  * A Data access object that establishes connection with a MongoDB database,
@@ -261,16 +261,16 @@ class DatabaseDAO {
     }
 
     /**
-     * Retrieves a metrics entry by taskID and deviceSessionID.
+     * Retrieves a metrics entry by taskID and deviceID.
      * @param {number} taskID - The ID of the task.
-     * @param {Buffer} deviceSessionID - The session ID of the device.
+     * @param {number} deviceID - The session ID of the device.
      * @returns {Promise<IMetrics | null>} The metrics data, or null if not found.
      * @throws Throws an error when fetching the object does not succeds.
      */
-    public async getMetrics(taskID: number, deviceSessionID: Buffer): Promise<IMetrics | null> {
-        const metrics = await this.metricsModel.findOne({ taskID, deviceSessionID });
+    public async getMetrics(taskID: number, deviceID: number): Promise<IMetrics | null> {
+        const metrics = await this.metricsModel.findOne({ taskID, deviceID });
         if(!metrics){
-            throw new Error(`Error fetching metrics form Device:${deviceSessionID} and Task:${taskID}`);
+            throw new Error(`Error fetching metrics form Device:${deviceID} and Task:${taskID}`);
         }
         return metrics;    
     }
@@ -278,18 +278,18 @@ class DatabaseDAO {
     /**
      * Adds new metrics to an existing metrics entry in the database.
      * @param {number} taskID - The task ID associated with the metrics.
-     * @param {Buffer} deviceSessionID - The session ID of the device.
+     * @param {number} deviceID - The session ID of the device.
      * @param {Object} newMetrics - The new metrics data to add.
      * @returns {Promise<IMetrics>} The updated metrics entry.
      * @throws Will throw an error if the metrics entry is not found or update fails.
      */
     public async addMetricsToExisting(
         taskID: number,
-        deviceSessionID: Buffer,
+        deviceID: number,
         newMetrics: IMetric
     ): Promise<IMetrics> {
         try {
-            const existingMetrics = await this.metricsModel.findOne({ taskID, deviceSessionID });
+            const existingMetrics = await this.metricsModel.findOne({ taskID, deviceID });
 
             if (!existingMetrics) {
                 throw new Error("Metrics entry not found.");
@@ -309,15 +309,15 @@ class DatabaseDAO {
     }
 
     /**
-     * Removes a metrics entry by taskID and deviceSessionID.
+     * Removes a metrics entry by taskID and deviceID.
      * @param {number} taskID - The ID of the task.
-     * @param {Buffer} deviceSessionID - The session ID of the device.
+     * @param {Buffer} deviceID - The session ID of the device.
      * @returns {Promise<IMetrics | null>} The removed metrics entry, or null if not found.
      * @throws Throws error when removing metrics does not succeds.
      */
-    public async removeMetrics(taskID: number, deviceSessionID: Buffer): Promise<IMetrics | null> {
+    public async removeMetrics(taskID: number, deviceID: number): Promise<IMetrics | null> {
         try{
-            return await this.metricsModel.findOneAndDelete({ taskID, deviceSessionID });
+            return await this.metricsModel.findOneAndDelete({ taskID, deviceID });
         } catch {
             throw new Error("Error removing Metrics entry");
         }

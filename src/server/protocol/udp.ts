@@ -404,9 +404,13 @@ class UDPServer extends UDPConnection {
                                 if (task.link_metrics.latency)  metrics.push("latency");
                                 if (task.link_metrics.packet_loss)  metrics.push("packet_loss");
 
+                                const device = await this.db.getDeviceByIP(rinfo.address);
+                                if(!device){
+                                    throw new Error(`Device not found!`);
+                                }
                                 const iMetric = createMetrics(
                                     <number> taskDatabaseId,
-                                    <Buffer> client?.ecdhe.generateSessionId(client.salt),
+                                    device.id,
                                     metrics
                                 );
 

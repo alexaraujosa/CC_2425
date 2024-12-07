@@ -69,23 +69,23 @@ async function testMetricsOperations(db: DatabaseDAO) {
     const logger = getOrCreateGlobalLogger();
     
     logger.log("\n");
-    const newMetrics = createMetrics(1, Buffer.from("deviceSession123"), ["cpu", "memory"]);
+    const newMetrics = createMetrics(1, 1, ["cpu", "memory"]);
     const metricsEntry = await db.storeMetrics(newMetrics);
     logger.log("Metrics created!");
     logger.log(metricsToString(metricsEntry));
 
-    const metrics = await db.getMetrics(1, Buffer.from("deviceSession123"));
+    const metrics = await db.getMetrics(1, 1);
     logger.log("Recived Metrics!");
     if (metrics) logger.log(metricsToString(metrics));
     
-    await db.addMetricsToExisting(1, Buffer.from("deviceSession123"), { "cpu_usage": {metric: [{ value: 70, timestamp: new Date(), alert: false }] } });
-    await db.addMetricsToExisting(1, Buffer.from("deviceSession123"), { "cpu": {metric: [{ value: 72, timestamp: new Date(), alert: false }] } });
-    await db.addMetricsToExisting(1, Buffer.from("deviceSession123"), { "cpu": {metric: [{ value: 38, timestamp: new Date(), alert: false }] } });
-    const metricsWithValues4 = await db.addMetricsToExisting(1, Buffer.from("deviceSession123"), { "cpu": {metric: [{ value: 95, timestamp: new Date(), alert: true}] } });
+    await db.addMetricsToExisting(1, 1, { "cpu_usage": {metric: [{ value: 70, timestamp: new Date(), alert: false }] } });
+    await db.addMetricsToExisting(1, 1, { "cpu": {metric: [{ value: 72, timestamp: new Date(), alert: false }] } });
+    await db.addMetricsToExisting(1, 1, { "cpu": {metric: [{ value: 38, timestamp: new Date(), alert: false }] } });
+    const metricsWithValues4 = await db.addMetricsToExisting(1, 1, { "cpu": {metric: [{ value: 95, timestamp: new Date(), alert: true}] } });
     logger.log("Updated metrics!");
     logger.log(metricsToString(metricsWithValues4));
 
-    const removedMetrics = await db.removeMetrics(1, Buffer.from("deviceSession123"));
+    const removedMetrics = await db.removeMetrics(1, 1);
     logger.log("Removed metrics!");
     if (removedMetrics) logger.log(metricsToString(removedMetrics));
 }

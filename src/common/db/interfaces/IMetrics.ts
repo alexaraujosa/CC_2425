@@ -27,7 +27,7 @@ type IMetric = _IMetric | {
 
 interface IMetrics extends Document {
     taskID: number;
-    deviceSessionID: Buffer;
+    deviceID: number;
     metrics: IMetric
 }
 
@@ -35,14 +35,14 @@ interface IMetrics extends Document {
  * Creates a new metrics object with a specified task ID, device session ID, and list of metric names.
  * 
  * @param {number} taskID - The ID of the task associated with these metrics.
- * @param {Buffer} deviceID - The session ID of the device associated with these metrics.
+ * @param {number} deviceID - The session ID of the device associated with these metrics.
  * @param {string[]} metricas - An array of metric names to initialize in the metrics map.
  * 
  * @returns {Partial<IMetrics>} A new metrics object with the specified properties and an empty array for each metric.
  */
 function createMetrics(
     taskID: number,
-    deviceSessionID: Buffer,
+    deviceID: number,
     metricas: string[]
 ): Partial<IMetrics> {
     const metricsMap: { [metricName: string]: { metric: { value: number, timestamp: Date, alert: boolean }[] } } = {};
@@ -55,7 +55,7 @@ function createMetrics(
 
     return {
         taskID: taskID,
-        deviceSessionID: deviceSessionID,
+        deviceID: deviceID,
         metrics: metricsMap,
     };
 }
@@ -109,8 +109,8 @@ function addMetrics(
  * @returns {string} The idented string with the information from the table.
  */
 function metricsToString(metricsObj: IMetrics): string {
-    const { taskID, deviceSessionID, metrics } = metricsObj;
-    let result = `Task ID: ${taskID}\nDevice Session ID: ${deviceSessionID.toString("hex")}\n`;
+    const { taskID, deviceID, metrics } = metricsObj;
+    let result = `Task ID: ${taskID}\nDevice ID: ${deviceID}\n`;
 
     for (const metricName in metrics) {
         if (metricName in metrics) {
