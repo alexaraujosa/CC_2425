@@ -120,11 +120,11 @@ class FlowControl{
     /**
      * Creates an instance of FlowControl.
      * @param {number} [packetWindow=3]
-     * @param {number} [retransmissionTimeout=5000]
+     * @param {number} [retransmissionTimeout=1000]
      * @param {number} [maxRetransmissions=3]
      * @memberof FlowControl
      */
-    public constructor(packetWindow: number = 3, retransmissionTimeout: number = 5000, maxRetransmissions: number = 3) {
+    public constructor(packetWindow: number = 3, retransmissionTimeout: number = 1000, maxRetransmissions: number = 15) {
         this.completeMsg = {};
         this.lastSeq = 1;
         this.lastAck = 0;
@@ -254,6 +254,7 @@ class FlowControl{
     
         if (this.timers.has(seqNumber)) {
             clearTimeout(this.timers.get(seqNumber)!);
+            this.timers.delete(seqNumber);
             logger.log(`Timer existente para ${seqNumber} redefinido.`);
         } else {
             logger.log(`Timer adicionado para ${seqNumber}.`);
@@ -325,6 +326,17 @@ class FlowControl{
         this.addToPreventDups(dg.getSequenceNumber());
         return isCorrect;
     }    
+
+    public packetsMissing(sq: number){
+        const r = [];
+
+        for(let i = 1; i <= sq-this.lastAck ; i++){
+            if(this.lastAck+i <= sq || !this.isDup(sq)){
+                r.push(this.lastAck+i);
+            }
+        }
+        return r;
+    }
 
     public reset(newSeq: number = 1) {
         this.completeMsg = {};
