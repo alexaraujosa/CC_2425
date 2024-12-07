@@ -78,10 +78,10 @@ async function testMetricsOperations(db: DatabaseDAO) {
     logger.log("Recived Metrics!");
     if (metrics) logger.log(metricsToString(metrics));
     
-    await db.addMetricsToExisting(1, Buffer.from("deviceSession123"), { "cpu": { valor: 70, timestamp: new Date(), alert: false } });
-    await db.addMetricsToExisting(1, Buffer.from("deviceSession123"), { "cpu": { valor: 72, timestamp: new Date(), alert: false } });
-    await db.addMetricsToExisting(1, Buffer.from("deviceSession123"), { "cpu": { valor: 38, timestamp: new Date(), alert: false } });
-    const metricsWithValues4 = await db.addMetricsToExisting(1, Buffer.from("deviceSession123"), { "cpu": { valor: 95, timestamp: new Date(), alert: true } });
+    await db.addMetricsToExisting(1, Buffer.from("deviceSession123"), { "cpu_usage": {metric: [{ value: 70, timestamp: new Date(), alert: false }] } });
+    await db.addMetricsToExisting(1, Buffer.from("deviceSession123"), { "cpu": {metric: [{ value: 72, timestamp: new Date(), alert: false }] } });
+    await db.addMetricsToExisting(1, Buffer.from("deviceSession123"), { "cpu": {metric: [{ value: 38, timestamp: new Date(), alert: false }] } });
+    const metricsWithValues4 = await db.addMetricsToExisting(1, Buffer.from("deviceSession123"), { "cpu": {metric: [{ value: 95, timestamp: new Date(), alert: true}] } });
     logger.log("Updated metrics!");
     logger.log(metricsToString(metricsWithValues4));
 

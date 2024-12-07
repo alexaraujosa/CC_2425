@@ -5,14 +5,30 @@ import { Document } from "mongoose";
  * Interface representing a Metrics document in the database.
  * Extends the Mongoose Document interface for MongoDB integration.
  */
+interface _IMetric {
+    [metricName: string]: {
+        metric: {
+            value: number;
+            timestamp: Date;
+            alert: boolean;
+        }[];
+    }
+}
+
+type IMetric = _IMetric | {
+    interface_stats?: {
+        metric: {
+            value: Record<string, number>;
+            timestamp: Date;
+            alert: boolean;
+        }[];
+    };
+}
+
 interface IMetrics extends Document {
     taskID: number;
     deviceSessionID: Buffer;
-    metrics: {
-        [metricName: string]: {
-            metric: { value: number, timestamp: Date, alert: boolean }[];
-        };
-    };
+    metrics: IMetric
 }
 
 /**
@@ -54,7 +70,7 @@ function createMetrics(
  */
 function addMetrics(
     metricTable: Partial<IMetrics>, 
-    metrics: { [metricName: string]: { valor: number, timestamp: Date, alert: boolean } }
+    metrics: IMetric
 ) {
     const logger = getOrCreateGlobalLogger();
     
@@ -68,11 +84,15 @@ function addMetrics(
             throw new Error(`Metric table does not contain the metric '${metricName}'.`);
         }
 
-        const metricData = metricTable.metrics[metricName];
+        const metricData = metricTable.metrics[<keyof IMetric>metricName];
+        if(!metricData){
+            throw new Error(`Metric data is undefined!`);
+        }
 
         if (!Array.isArray(metricData.metric)) {
             throw new Error(`Invalid metric data for '${metricName}'.`);
         }
+
 
         metricData.metric.push({
             value: valor,
@@ -94,7 +114,7 @@ function metricsToString(metricsObj: IMetrics): string {
 
     for (const metricName in metrics) {
         if (metricName in metrics) {
-            const metricData = metrics[metricName];
+            const metricData = metrics[<keyof IMetric>metricName];
 
             if (metricData && Array.isArray(metricData.metric)) {
                 result += `\nMetric: ${metricName}\n`;
@@ -113,6 +133,7 @@ function metricsToString(metricsObj: IMetrics): string {
 }
 
 export {   
+    IMetric,
     IMetrics,
     createMetrics,
     addMetrics,

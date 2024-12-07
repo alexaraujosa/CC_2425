@@ -10,13 +10,13 @@ import mongoose, { Model } from "mongoose";
 import { IDevice } from "./interfaces/IDevice.js";
 import { ITask } from "./interfaces/ITask.js";
 import { getOrCreateGlobalLogger } from "$common/util/logger.js";
-import { addMetrics, IMetrics } from "./interfaces/IMetrics.js";
+import { addMetrics, IMetric, IMetrics } from "./interfaces/IMetrics.js";
 import deviceModel from "./models/deviceModel.js";
 import taskModel from "./models/taskModel.js";
 import metricsModel from "./models/IMetricsModel.js";
 
-const MONGO_URL = "mongodb://localhost:27017/CCDatabase";
-// const MONGO_URL = "mongodb://192.168.56.101:27017/CCDatabase";
+//const MONGO_URL = "mongodb://localhost:27017/CCDatabase";
+const MONGO_URL = "mongodb://192.168.56.101:27017/CCDatabase";
 
 /**
  * A Data access object that establishes connection with a MongoDB database,
@@ -286,7 +286,7 @@ class DatabaseDAO {
     public async addMetricsToExisting(
         taskID: number,
         deviceSessionID: Buffer,
-        newMetrics: { [metricName: string]: { valor: number, timestamp: Date, alert: boolean } }
+        newMetrics: IMetric
     ): Promise<IMetrics> {
         try {
             const existingMetrics = await this.metricsModel.findOne({ taskID, deviceSessionID });
