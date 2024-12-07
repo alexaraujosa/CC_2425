@@ -264,6 +264,7 @@ class UDPClient extends UDPConnection {
                         case NetTaskDatagramType.PUSH_SCHEMAS: {
                             const ntSchemas = NetTaskPushSchemas.deserialize(payloadReader, this._ecdhe, nt);
                             const schemas = ntSchemas.getSchemas();
+                            this.logger.pInfo(`Connection established with the server.`);
 
                             const ack = new NetTaskBodyless(
                                 ntSchemas.getSessionId(),

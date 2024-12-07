@@ -64,7 +64,7 @@ class UDPServer extends UDPConnection {
 
     public onListen(): void {
         const address = this.socket.address();
-        this.logger.log(`UDP server listening at ${address.address}:${address.port}`);
+        this.logger.pInfo(`UDP server listening at ${address.address}:${address.port}`);
     }
 
     /**
@@ -383,7 +383,7 @@ class UDPServer extends UDPConnection {
 
                             const deviceId = await this.db.storeDevice(device);
                             this.logger.info("[SERVER] Stored device with ID: " + deviceId);
-
+                            this.logger.pInfo(`Agent with device '${deviceId}' connected.`);
                             const deviceById = await this.db.getDeviceByID(deviceId);
                             if(deviceById) this.logger.info("[SERVER] Retrieved Device by ID:", deviceToString(deviceById));
 
@@ -443,6 +443,9 @@ class UDPServer extends UDPConnection {
                             }
                             const metricsDg = NetTaskMetric.deserialize(payloadReader, client!.ecdhe!, nt, config.tasks);
                             const device = await this.db.getDeviceBySession(nt.getSessionId());
+                            if (!device) {
+                                throw new Error("Device not found.");
+                            }
 
                             const ack = new NetTaskBodyless(
                                 nt.getSessionId(),
@@ -457,19 +460,31 @@ class UDPServer extends UDPConnection {
 
                             this.logger.info(metricsResult);
                             
-                            // TODO: Log metrics from device X task Y
+                            this.logger.pInfo(`Metrics report from Agent with device '${device.id}':`);
 
                             const metricsDb: {
-                                [metricName: string] : { valor: number; timestamp: Date, alert: boolean}
+                                [metricName: string]: 
+                                    { valor: number; timestamp: Date; alert: boolean } 
+                                    | { 
+                                        interface_stats?: { 
+                                            metric: { 
+                                                value: Record<string, number>; 
+                                                timestamp: Date; 
+                                                alert: boolean 
+                                            }[] 
+                                        } 
+                                    };
                             } = {};
 
                             if (metricsResult.device_metrics) {
+                                this.logger.pInfo(`|-> Device metrics:`);
                                 for (const key in metricsResult.device_metrics) {
-
+                                    
                                     if (key !== "interface_stats") {
                                         const value = metricsResult.device_metrics[key as keyof typeof metricsResult.device_metrics];
 
                                         if (value && value !== IgnoreValues.s8) {
+                                            this.logger.pInfo(`|--> ${key}: ${value}`);
                                             metricsDb[key] = { 
                                                 valor: metricsResult.device_metrics[key as keyof typeof metricsResult.device_metrics] as number, 
                                                 timestamp: new Date(),
@@ -481,12 +496,13 @@ class UDPServer extends UDPConnection {
                                             const value = metricsResult.device_metrics.interface_stats[networkInterface];
 
                                             if (value && value !== IgnoreValues.s8) {
-                                                this.logger.info(`Received for metric '${key}' value: ${value}`);
-                                                metricsDb[key] = { 
-                                                    valor: metricsResult.device_metrics.interface_stats[networkInterface], 
-                                                    timestamp: new Date(),
-                                                    alert: false 
-                                                };
+                                                this.logger.pInfo(`|--> '${networkInterface}' total packets: ${value}`);
+                                                // (metricsDb[key] as { interface_stats: { metric: { value: Record<string, number>; timestamp: Date; alert: boolean }[] } })
+                                                //     .interface_stats.metric.push({
+                                                //         value: { [networkInterface]: value },
+                                                //         timestamp: new Date(),
+                                                //         alert: false
+                                                //     });
                                             }
                                         }
                                     }
@@ -494,10 +510,12 @@ class UDPServer extends UDPConnection {
                             }
 
                             if (metricsResult.link_metrics) {
+                                this.logger.pInfo(`|-> Link metrics:`);
                                 for (const key in metricsResult.link_metrics) {
                                     let value = metricsResult.link_metrics[key as keyof typeof metricsResult.link_metrics] as number;
                                     if (value && value !== IgnoreValues.s16) {
                                         value = value - 1;
+                                        this.logger.pInfo(`|--> ${key}: ${value}`);
                                         this.logger.info(`Received for metric '${key}' value: ${value}`);
                                         metricsDb[key] = { 
                                             valor: value, 
@@ -507,6 +525,8 @@ class UDPServer extends UDPConnection {
                                     }
                                 }
                             }
+
+                            this.logger.pInfo(`Metrics report from Agent with device '${device.id}' ended.\n`);
 
                             await this.db.addMetricsToExisting(
                                 <number> this.dbMapper.get(metricsDg.getTaskId()),
@@ -576,7 +596,7 @@ class UDPServer extends UDPConnection {
                     _nt = undefined;
                 }
             } catch (e) {
-                this.logger.pError("[AGENT] Error while processing packet:", { cause: e });
+                this.logger.error("[AGENT] Error while processing packet:", { cause: e });
 
                 const sessionId = _nt?.getSessionId() ?? this.sessionIds[ConnectionTarget.toQualifiedName(rinfo)];
                 if (sessionId) {

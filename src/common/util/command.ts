@@ -32,7 +32,7 @@ async function executePing(
             const result:number = parseInt(stdout.trim());
             logger.info("Ping : " + result);
 
-            if (result === 0) {
+            if (result === 0 || Number.isNaN(result)) {
                 logger.warn("Target unreachable.");
                 resolve(IgnoreValues.s16);
                 return;

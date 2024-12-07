@@ -236,15 +236,17 @@ async function monitorMetrics(
     }
 
     if (task.device_metrics.interface_stats) {
-        for (const value of Object.values(networkInterfacesAlertsControl)) {
-            if (value) {
-                result.interfacePPS = networkInterfacesAlertsValue;
-                break;
-            }
-        }
-
         if (result.interfacePPS === undefined) {
             result.interfacePPS = interfaceStats;
+        }
+
+        for (const [key, value] of Object.entries(networkInterfacesAlertsControl)) {
+            if (value) {
+                result.interfacePPS[key] = IgnoreValues.s8;
+                break;
+            } else {
+                result.interfacePPS[key] = interfaceStats[key];
+            }
         }
     } 
 
@@ -273,7 +275,11 @@ async function executeCommand(
                 <number>interval,
                 task.frequency
             ).then( (latency) => {
-                result.latency = latency;
+                if (latency !== IgnoreValues.s16) {
+                    result.latency = latency + 1;
+                } else {
+                    result.latency = latency;
+                }
             })
         );
     }
@@ -339,7 +345,7 @@ async function executeTask(
     schemas: SPACKPacked | { [key: string]: SPACKTask; }
 ): Promise<void> {
     const logger = getOrCreateGlobalLogger();
-    logger.info(`Starting task '${taskConfigId}' execution. Repeating within ${task.frequency}ms.`);
+    logger.pInfo(`Starting task '${taskConfigId}' execution.\n`);
 
     async function taskLoop() {
         logger.info(`Running a new task (${taskConfigId}) iteration.`);
@@ -351,22 +357,22 @@ async function executeTask(
             executeCommand(task),
         ]);
 
-        logger.pInfo(`Task '${taskConfigId}' metrics report:`);
+        logger.pInfo(`Metrics report for task '${taskConfigId}':`);
 
-        logger.pInfo("====== DEVICE METRICS ======");
+        logger.pInfo("|-> Device metrics:");
         if (
             deviceMetrics.avgCpuUsage 
             && deviceMetrics.avgCpuUsage !== IgnoreValues.s8
-        ) logger.pInfo(`Average CPU Usage: ${deviceMetrics.avgCpuUsage}%`);
+        ) logger.pInfo(`|--> Average CPU Usage: ${deviceMetrics.avgCpuUsage}%`);
 
         if (
             deviceMetrics.avgRamUsage 
             && deviceMetrics.avgRamUsage !== IgnoreValues.s8
-        ) logger.pInfo(`Average RAM Usage: ${deviceMetrics.avgRamUsage}%`);
+        ) logger.pInfo(`|--> Average RAM Usage: ${deviceMetrics.avgRamUsage}%`);
 
         if (deviceMetrics.interfacePPS && deviceMetrics.interfacePPS) {
             for (const [netInterface, pps] of Object.entries(deviceMetrics.interfacePPS)) {
-                if (pps !== IgnoreValues.s8) logger.pInfo(`Total packets in '${netInterface}': ${pps}`);
+                if (pps !== IgnoreValues.s8) logger.pInfo(`|--> '${netInterface}' total packets: ${pps}`);
             }
         }
 
@@ -374,7 +380,7 @@ async function executeTask(
             ? undefined 
             : deviceMetrics.interfacePPS;
 
-        logger.pInfo("====== LINK METRICS ======");
+        logger.pInfo("|-> Link metrics:");
 
         //#region ============== ALERT TREATMENT ==============
         const interfaceDefaultAlert: Record<string, number> = {};
@@ -390,7 +396,7 @@ async function executeTask(
         ) {
             const spack: SPACKTaskMetric = createSPACKTaskMetricForAlert(
                 "jitter", 
-                (linkMetrics.jitter - 1) === IgnoreValues.s16 ? IgnoreValues.s16 : linkMetrics.jitter, 
+                linkMetrics.jitter === IgnoreValues.s16 ? 10001 : linkMetrics.jitter, // 10001 means Target Unreachable
                 interfaceDefaultAlert
             );
             const alMetric = new AlertFlow(
@@ -446,10 +452,12 @@ async function executeTask(
         }
         //#endregion ============== ALERT TREATMENT ==============
 
-        if (linkMetrics.bandwidth && linkMetrics.bandwidth !== IgnoreValues.s16) logger.pInfo(`Bandwidth: ${linkMetrics.bandwidth - 1} Mbps`);
-        if (linkMetrics.jitter && linkMetrics.jitter !== IgnoreValues.s16) logger.pInfo(`Jitter: ${linkMetrics.jitter - 1} ms`);
-        if (linkMetrics.latency && linkMetrics.latency !== IgnoreValues.s16) logger.pInfo(`Latency: ${linkMetrics.latency - 1} ms`);
-        if (linkMetrics.packet_loss && linkMetrics.packet_loss !== IgnoreValues.s16) logger.pInfo(`Packet Loss: ${linkMetrics.packet_loss - 1}%`);
+        if (linkMetrics.bandwidth && linkMetrics.bandwidth !== IgnoreValues.s16) logger.pInfo(`|--> Bandwidth: ${linkMetrics.bandwidth - 1} Mbps`);
+        if (linkMetrics.jitter && linkMetrics.jitter !== IgnoreValues.s16) logger.pInfo(`|--> Jitter: ${linkMetrics.jitter - 1} ms`);
+        if (linkMetrics.latency && linkMetrics.latency !== IgnoreValues.s16) logger.pInfo(`|--> Latency: ${linkMetrics.latency - 1} ms`);
+        if (linkMetrics.packet_loss && linkMetrics.packet_loss !== IgnoreValues.s16) logger.pInfo(`|--> Packet Loss: ${linkMetrics.packet_loss - 1}%`);
+
+        logger.pInfo(`Metrics report for task '${taskConfigId}' ended.\n`);
 
         // Send metrics
         const fwControl = udp.flowControl;
@@ -464,7 +472,7 @@ async function executeTask(
                 device_metrics: {
                     cpu_usage: deviceMetrics.avgCpuUsage,
                     ram_usage: deviceMetrics.avgRamUsage,
-                    interface_stats: interfaceStats
+                    interface_stats: deviceMetrics.interfacePPS
                 },
                 link_metrics: {
                     bandwidth: linkMetrics.bandwidth,
@@ -480,7 +488,7 @@ async function executeTask(
         // logger.info(ntMetric);
         udp.send(ntMetric);
 
-        logger.pInfo(`End of task '${taskConfigId}' execution.\n`);
+        logger.info(`End of task '${taskConfigId}' execution.\n`);
 
         // Schedule next execution
         await taskLoop();

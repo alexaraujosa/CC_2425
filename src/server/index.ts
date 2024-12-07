@@ -148,7 +148,7 @@ export async function serverInit(options: CLIOptions) {
         if(taskByID)    logger.info("Retrieved Task by ID:", taskToString(taskByID));
     }
 
-
+    logger.pInfo("Database initial setup completed.");
     // await dbTester();
 
     // Server setup
