@@ -92,7 +92,7 @@ class TCPServerConnection extends TCPConnection {
                             const value = alertMetrics.device_metrics[key as keyof typeof alertMetrics.device_metrics];
 
                             if (value && value !== IgnoreValues.s8) {
-                                this.logger.pWarn(`Alert from Agent with device '${device?.id}' on metric '${key}': ${value}`);
+                                this.logger.pWarn(`Alert from Agent with device '${device?.id}' task '${afRequest.getTaskId()}' on metric '${key}': ${value}`);
                                 await this.db.addMetricsToExisting(
                                     <number> this.dbMapper.get(afRequest.getTaskId()), 
                                     <number> device?.id, 
@@ -104,7 +104,7 @@ class TCPServerConnection extends TCPConnection {
                                 const value = alertMetrics.device_metrics.interface_stats[networkInterface];
 
                                 if (value && value !== IgnoreValues.s8) {
-                                    this.logger.pWarn(`Alert from Agent with device '${device?.id}' on interface '${networkInterface}': ${value}`);
+                                    this.logger.pWarn(`Alert from Agent with device '${device?.id}' task '${afRequest.getTaskId()}' on interface '${networkInterface}': ${value}`);
                                     // await this.db.addMetricsToExisting(
                                     //     <number> this.dbMapper.get(afRequest.getTaskId()), 
                                     //     <number> device?.id, 
@@ -122,7 +122,7 @@ class TCPServerConnection extends TCPConnection {
 
                         if (value && value !== IgnoreValues.s16) {
                             value = value - 1;
-                            this.logger.pWarn(`Alert from Agent with device '${device?.id}' on metric '${key}: ${value}`);
+                            this.logger.pWarn(`Alert from Agent with device '${device?.id}' task '${afRequest.getTaskId()}' on metric '${key}: ${value}`);
                             await this.db.addMetricsToExisting(
                                 <number> this.dbMapper.get(afRequest.getTaskId()), 
                                 <number> device?.id, 

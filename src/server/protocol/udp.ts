@@ -460,7 +460,7 @@ class UDPServer extends UDPConnection {
 
                             this.logger.info(metricsResult);
                             
-                            this.logger.pInfo(`Metrics report from Agent with device '${device.id}':`);
+                            this.logger.pInfo(`Metrics report from Agent with device '${device.id}' task '${metricsDg.getTaskId()}':`);
 
                             const metricsDb: {
                                 [metricName: string]: 
@@ -526,7 +526,7 @@ class UDPServer extends UDPConnection {
                                 }
                             }
 
-                            this.logger.pInfo(`Metrics report from Agent with device '${device.id}' ended.\n`);
+                            this.logger.pInfo(`Metrics report from Agent with device '${device.id}' task '${metricsDg.getTaskId()}' ended.\n`);
 
                             await this.db.addMetricsToExisting(
                                 <number> this.dbMapper.get(metricsDg.getTaskId()),
