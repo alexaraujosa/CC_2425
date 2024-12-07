@@ -118,6 +118,8 @@ function validateTask(taskName: string, task: RawTask, _config: RawConfig): Vali
 
     // Validate nil components
     if (!task.frequency) return makeInvalid(new Error(`Task ${taskName} has missing property 'frequency'.`));
+    const taskFrequency = parseStringInterval(task.frequency);
+
     if (!task.device_metrics && !task.link_metrics && !task.global_options) 
         return makeInvalid(new Error(`Task ${taskName} has no metrics defined.`));
 
@@ -148,6 +150,7 @@ function validateTask(taskName: string, task: RawTask, _config: RawConfig): Vali
     }
 
     // Validate Metrics components
+    let udpIPerfServers = 0;
     if (task.link_metrics.bandwidth) {
         // if (!task.global_options.mode && !task.link_metrics.bandwidth?.mode)  return false;
         // if (!task.global_options.target && !task.link_metrics.bandwidth?.target)  return false;
@@ -156,9 +159,31 @@ function validateTask(taskName: string, task: RawTask, _config: RawConfig): Vali
         // if (!task.global_options.interval && !task.link_metrics.bandwidth?.interval)  return false;
 
         for (const metric of ["mode", "target", "duration", "transport", "interval"] as const) {
-            if (!task.global_options[metric] && task.link_metrics.bandwidth[metric])
+            if (!task.global_options[metric] && !task.link_metrics.bandwidth[metric])
                 return makeInvalid(new Error(`Task ${taskName} has link metric with non-overridden undefined option: '${metric}'.`));
         }
+
+        // Verify IPerf UDP Server quantity
+        if (
+            (task.link_metrics.bandwidth.mode === "server" || (!task.link_metrics.bandwidth.mode && task.global_options.mode === "server"))
+            && (task.link_metrics.bandwidth.transport === "udp" || (!task.link_metrics.bandwidth.transport && task.global_options.transport === "udp"))
+        ) udpIPerfServers++;
+
+        // Verify bandwidth duration
+        const bandwidthDuration = typeof task.link_metrics.bandwidth.duration === "undefined" 
+            ? parseStringInterval(<string>task.global_options.duration) 
+            : parseStringInterval(<string>task.link_metrics.bandwidth.duration);
+
+        if (bandwidthDuration >= taskFrequency) 
+            return makeInvalid(new Error(`Task ${taskName} has bandwidth duration greater or equal to the task frequency.`));
+
+        // Emit warning for a shorter interval, but ignore it.
+        const bandwidthInterval = typeof task.link_metrics.bandwidth.interval === "undefined" 
+            ? parseStringInterval(<string>task.global_options.interval) 
+            : parseStringInterval(<string>task.link_metrics.bandwidth.interval);
+
+        if (bandwidthInterval > bandwidthDuration)
+            logger.warn(`Task ${taskName} bandwidth interval is greater than the duration.`);
 
         // Emit warnings for additional unknown properties, but ignore them.
         for (const key of Object.keys(task.link_metrics.bandwidth).filter((k) => !IPERF_LINK_METRIC_KEYS.includes(k))) {
@@ -174,9 +199,38 @@ function validateTask(taskName: string, task: RawTask, _config: RawConfig): Vali
         // if (!task.global_options.interval && !task.link_metrics.jitter?.interval)  return false;
 
         for (const metric of ["mode", "target", "duration", "transport", "interval"] as const) {
-            if (!task.global_options[metric] && task.link_metrics.jitter[metric])
+            if (!task.global_options[metric] && !task.link_metrics.jitter[metric])
                 return makeInvalid(new Error(`Task ${taskName} has link metric with non-overridden undefined option '${metric}'.`));
         }
+
+        // Verify transport for iperf server
+        if (
+            (task.link_metrics.jitter && task.link_metrics.jitter.transport === "tcp") 
+            || (task.link_metrics.jitter && !task.link_metrics.jitter.transport 
+                && task.global_options.transport && task.global_options.transport === "tcp")
+        ) {
+            return makeInvalid(new Error(`Task ${taskName} has iperf transport has TCP, but wants to read jitter.`));
+        } 
+
+        // Verify IPerf UDP Server quantity
+        if (task.link_metrics.jitter.mode === "server" || (!task.link_metrics.jitter.mode && task.global_options.mode === "server"))
+            udpIPerfServers++;
+
+        // Verify jitter duration
+        const jitterDuration = typeof task.link_metrics.jitter.duration === "undefined" 
+            ? parseStringInterval(<string>task.global_options.duration) 
+            : parseStringInterval(<string>task.link_metrics.jitter.duration);
+
+        if (jitterDuration >= taskFrequency) 
+            return makeInvalid(new Error(`Task ${taskName} has jitter duration greater or equal to the task frequency.`));
+
+        // Emit warning for a shorter interval, but ignore it.
+        const jitterInterval = typeof task.link_metrics.jitter.interval === "undefined" 
+            ? parseStringInterval(<string>task.global_options.interval) 
+            : parseStringInterval(<string>task.link_metrics.jitter.interval);
+
+        if (jitterInterval > jitterDuration)
+            logger.warn(`Task ${taskName} jitter interval is greater than the duration.`);
 
         // Emit warnings for additional unknown properties, but ignore them.
         for (const key of Object.keys(task.link_metrics.jitter).filter((k) => !IPERF_LINK_METRIC_KEYS.includes(k))) {
@@ -192,9 +246,39 @@ function validateTask(taskName: string, task: RawTask, _config: RawConfig): Vali
         // if (!task.global_options.interval && !task.link_metrics.packet_loss?.interval)  return false;
 
         for (const metric of ["mode", "target", "duration", "transport", "interval"] as const) {
-            if (!task.global_options[metric] && task.link_metrics.packet_loss[metric])
+            if (!task.global_options[metric] && !task.link_metrics.packet_loss[metric])
                 return makeInvalid(new Error(`Task ${taskName} has link metric with non-overridden undefined option '${metric}'.`));
         }
+
+        // Verify transport for iperf server
+        if (
+            (task.link_metrics.packet_loss && task.link_metrics.packet_loss.transport === "tcp") 
+            || (task.link_metrics.packet_loss && !task.link_metrics.packet_loss.transport 
+                && task.global_options.transport && task.global_options.transport === "tcp")
+        ) {
+            return makeInvalid(new Error(`Task ${taskName} has iperf transport has TCP, but wants to read packet loss.`));
+        }
+
+        // Verify IPerf UDP Server quantity
+        if (task.link_metrics.packet_loss.mode === "server" || (!task.link_metrics.packet_loss.mode && task.global_options.mode === "server"))
+            udpIPerfServers++;
+
+        // Verify packet loss duration
+        const packetLossDuration = typeof task.link_metrics.packet_loss.duration === "undefined" 
+            ? parseStringInterval(<string>task.global_options.duration) 
+            : parseStringInterval(<string>task.link_metrics.packet_loss.duration);
+
+        if (packetLossDuration >= taskFrequency) 
+            return makeInvalid(new Error(`Task ${taskName} has packet loss duration greater or equal to the task frequency.`));
+
+        // Emit warning for a shorter interval, but ignore it.
+        const packetLossInterval = typeof task.link_metrics.packet_loss === "undefined" 
+            ? parseStringInterval(<string>task.global_options.interval) 
+            : parseStringInterval(<string>task.link_metrics.packet_loss);
+
+        if (packetLossInterval > packetLossDuration)
+            logger.warn(`Task ${taskName} packet loss interval is greater than the duration.`);
+
         
         // Emit warnings for additional unknown properties, but ignore them.
         for (const key of Object.keys(task.link_metrics.packet_loss).filter((k) => !IPERF_LINK_METRIC_KEYS.includes(k))) {
@@ -212,11 +296,24 @@ function validateTask(taskName: string, task: RawTask, _config: RawConfig): Vali
                 return makeInvalid(new Error(`Task ${taskName} has link metric with non-overridden undefined option '${metric}'.`));
         }
         
+        // Verify latency execution time
+        const latencyInterval = typeof task.link_metrics.latency.interval === "undefined" 
+            ? parseStringInterval(<string>task.global_options.interval) 
+            : parseStringInterval(<string>task.link_metrics.latency.interval); 
+        const latencyCounter = typeof task.link_metrics.latency.counter === "undefined" 
+            ? task.global_options.counter : task.link_metrics.latency.counter;
+
+        if ((latencyInterval * <number>latencyCounter) >= taskFrequency)
+            return makeInvalid(new Error(`Task ${taskName} has a latency execution time greater or equal to the task frequency.`));
+
         // Emit warnings for additional unknown properties, but ignore them.
         for (const key of Object.keys(task.link_metrics.latency).filter((k) => !LATENCY_LINK_METRIC_KEYS.includes(k))) {
             logger.warn(`Task ${taskName} has unknown property '${key}' on link_metrics.latency.`);
         }
     }
+
+    // Verify IPerf UDP Server quantity
+    if (udpIPerfServers > 1) return makeInvalid(new Error(`Task ${taskName} has more than 1 UDP IPerf Server. Current value: ${udpIPerfServers}`));
 
     // Emit warnings for additional unknown properties, but ignore them.
     for (const key of Object.keys(task.link_metrics).filter((k) => !LINK_METRICS_KEYS.includes(k))) {
@@ -310,14 +407,14 @@ function transformConfig(config: RawConfig): Config {
                 taskId,
                 {
                     ...task,
-                    frequency: parseStringInterval(task.frequency),
+                    frequency: parseStringInterval(task.frequency) / 1000,
                     global_options: cleanUndefined({
                         ...task.global_options,
                         duration: task.global_options.duration
-                            ? parseStringInterval(task.global_options.duration)
+                            ? parseStringInterval(task.global_options.duration) / 1000
                             : undefined,
                         interval: task.global_options.interval
-                            ? parseStringInterval(task.global_options.interval)
+                            ? parseStringInterval(task.global_options.interval) / 1000
                             : undefined,
                     }),
                     link_metrics: task.link_metrics
@@ -328,10 +425,10 @@ function transformConfig(config: RawConfig): Config {
                                     : cleanUndefined({
                                         ...task.link_metrics.bandwidth,
                                         duration: task.link_metrics.bandwidth.duration
-                                            ? parseStringInterval(task.link_metrics.bandwidth.duration)
+                                            ? parseStringInterval(task.link_metrics.bandwidth.duration) / 1000
                                             : undefined,
                                         interval: task.link_metrics.bandwidth.interval
-                                            ? parseStringInterval(task.link_metrics.bandwidth.interval)
+                                            ? parseStringInterval(task.link_metrics.bandwidth.interval) / 1000
                                             : undefined,
                                     })
                                 : undefined,
@@ -341,10 +438,10 @@ function transformConfig(config: RawConfig): Config {
                                     : cleanUndefined({
                                         ...task.link_metrics.jitter,
                                         duration: task.link_metrics.jitter.duration
-                                            ? parseStringInterval(task.link_metrics.jitter.duration)
+                                            ? parseStringInterval(task.link_metrics.jitter.duration) / 1000
                                             : undefined,
                                         interval: task.link_metrics.jitter.interval
-                                            ? parseStringInterval(task.link_metrics.jitter.interval)
+                                            ? parseStringInterval(task.link_metrics.jitter.interval) / 1000
                                             : undefined,
                                     })
                                 : undefined,
@@ -354,10 +451,10 @@ function transformConfig(config: RawConfig): Config {
                                     : cleanUndefined({
                                         ...task.link_metrics.packet_loss,
                                         duration: task.link_metrics.packet_loss.duration
-                                            ? parseStringInterval(task.link_metrics.packet_loss.duration)
+                                            ? parseStringInterval(task.link_metrics.packet_loss.duration) / 1000
                                             : undefined,
                                         interval: task.link_metrics.packet_loss.interval
-                                            ? parseStringInterval(task.link_metrics.packet_loss.interval)
+                                            ? parseStringInterval(task.link_metrics.packet_loss.interval) / 1000
                                             : undefined,
                                     })
                                 : undefined,
