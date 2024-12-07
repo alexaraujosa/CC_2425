@@ -1,33 +1,26 @@
 {
     "tasks": {
         "task1":  {
-            "frequency": "20s",
+            "frequency": "5s",
             "device_metrics": {
                 "cpu_usage": true,
                 "ram_usage": true,
-                "interface_stats": true,
-                "volume": true
+                "interface_stats": false,
+                "volume": false
             },
             "global_options": {
-                "mode": "client",
-                "target": "12.243.45.2",
-                "duration": "10s",
+                "mode": "server",
+                "target": "10.0.6.10",
+                "duration": "2s",
                 "transport": "udp",
-                "interval": "30s",
-                "counter": 5 
+                "interval": "1s",
+                "counter": 4
             },
             "link_metrics":{
-                "bandwidth": {},
-                "jitter": {},
-                "packet_loss": {},
-                "latency": {} 
+                "packet_loss": {}
             },
             "alert_conditions": {
-                "cpu_usage": 80,
-                "ram_usage": 80,
-                "interface_stats": 2000,
-                "packet_loss": 5,
-                "jitter": "100ms"
+                "packet_loss": "5"
             }
         },
         "task2":  {
@@ -42,8 +35,8 @@
                 "mode": "server",
                 "transport": "udp",
                 "target": "123.243.12.3",
-                "duration": "120s",
-                "interval": "5s"
+                "duration": "4s",
+                "interval": "1s"
             }, 
             "link_metrics":{
                 "bandwidth": {}
@@ -60,15 +53,15 @@
             },
             "global_options": {
                 "target": "12.243.45.2",
-                "counter": 5 
+                "counter": 4
             },
             "link_metrics":{
                 "latency": {
-                    "interval": "30s"
+                    "interval": "1s"
                 }
             },
             "alert_conditions": {
-                "latency": "200ms"
+                "latency": "200s"
             }
         }
     },
@@ -83,7 +76,7 @@
         },
         "device3": {
             "ip": "10.0.7.10",
-            "tasks": ["task3"]
+            "tasks": ["task1"]
         },
         "deviceLH": {
             "ip": "127.0.0.1",
