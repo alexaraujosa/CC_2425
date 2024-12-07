@@ -111,6 +111,14 @@ const DEFAULT_TASK = <Task><unknown>{
  * The bytesize to be used for keys on packed objects.
  */
 const SERIALIZED_KEY_SIZE = 1;
+
+/**
+ * The value to be ignored when processing a metric.
+ */
+enum IgnoreValues {
+    s8 = 128,
+    s16 = 32767
+};
 //#endregion ============== Constants ==============
 
 //#endregion ============== Errors ==============
@@ -303,6 +311,13 @@ class _SPACKTask {
                 return this.createNestedProxy(<GenericObject>valueInData, <GenericObject>valueInDefaults);
             }
             return valueInData;
+        }
+
+        if (valueInDefaults !== undefined) {
+            if (typeof valueInDefaults === "object" && valueInDefaults !== null) {
+                return this.createNestedProxy({}, <GenericObject>valueInDefaults);
+            }
+            return valueInDefaults;
         }
 
         return valueInDefaults;
@@ -610,11 +625,11 @@ function packAlertConditions(value: unknown): SPACKTaskPackedObject {
     }
 
     if (SPACKTaskKey.JITTER in value) {
-        packed[ID(SPACKTaskKey.JITTER)] = packTimeIntervalString(value[SPACKTaskKey.JITTER]);
+        packed[ID(SPACKTaskKey.JITTER)] = <number>value[SPACKTaskKey.JITTER];
     }
 
     if (SPACKTaskKey.LATENCY in value) {
-        packed[ID(SPACKTaskKey.LATENCY)] = packTimeIntervalString(value[SPACKTaskKey.LATENCY]);
+        packed[ID(SPACKTaskKey.LATENCY)] = <number>value[SPACKTaskKey.LATENCY];
     }
 
     return packed;
@@ -627,8 +642,11 @@ function unpackAlertConditions(value: SPACKTaskPackedObject): Record<string, unk
 
     if (ID(SPACKTaskKey.CPU_USAGE) in value) {
         const crShort = <number>value[ID(SPACKTaskKey.CPU_USAGE)];
-        unpacked[SPACKTaskKey.CPU_USAGE] = crShort >> 8 & 255;
-        unpacked[SPACKTaskKey.RAM_USAGE] = crShort & 255;
+        unpacked[SPACKTaskKey.CPU_USAGE] = crShort & 255;
+        unpacked[SPACKTaskKey.RAM_USAGE] = crShort >> 8 & 255;
+
+        if (unpacked[SPACKTaskKey.CPU_USAGE] === 0) delete unpacked[SPACKTaskKey.CPU_USAGE];
+        if (unpacked[SPACKTaskKey.RAM_USAGE] === 0) delete unpacked[SPACKTaskKey.RAM_USAGE];
     }
 
     if (ID(SPACKTaskKey.INTERFACE_STATS) in value) {
@@ -830,7 +848,7 @@ function serializeSPACK(spack: SPACKPacked, keymap?: Record<number, string>): Bu
             if (spack < 0) {
                 for (const type in SerializationTypeSignedKeys) {
                     // if (spack < (1 << (SerializationTypeByteSize[SerializationTypeSignedKeys[type]] * 8))) {
-                    if (spack < (2 ** (SerializationTypeByteSize[SerializationTypeSignedKeys[type]] * 8) - 1)) {
+                    if (spack >= -(2 ** (SerializationTypeByteSize[SerializationTypeSignedKeys[type]] * 8) - 1)) {
                         sType = SerializationTypeSignedKeys[Number(type)];
                         break;
                     }
@@ -1109,6 +1127,8 @@ function deserializeTaskMetric(metric: Buffer, task: Partial<Task>) {
 
     if ("device_metrics" in task) {
         for (const key in task.device_metrics) {
+            if (!task.device_metrics[<keyof typeof task.device_metrics>key]) continue;
+
             if (SPACKTaskKeyMap[<SPACKTaskKey>key].packer === nilpack) {
                 unpacked["device_metrics"][key] = deserializeSPACK(reader);
             } else {
@@ -1120,6 +1140,8 @@ function deserializeTaskMetric(metric: Buffer, task: Partial<Task>) {
 
     if ("link_metrics" in task) {
         for (const key in task.link_metrics) {
+            if (!task.link_metrics[<keyof typeof task.link_metrics>key]) continue;
+
             if (SPACKTaskKeyMap[<SPACKTaskKey>key].packer === nilpack) {
                 unpacked["link_metrics"][key] = deserializeSPACK(reader);
             } else {
@@ -1146,6 +1168,7 @@ export {
     type _SPACKTask,
     type SPACKTaskMetric,
     SPACKTask,
+    IgnoreValues,
 
     packTaskSchema,
     packTaskSchemas,
@@ -1161,30 +1184,30 @@ export {
 
 
 
-const { initConfig } = await import("../../server/config.js");
+// const { initConfig } = await import("../../server/config.js");
 
-const logger = getOrCreateGlobalLogger({ debug: true, printCallerFile: true });
-if (!("config" in globalThis)) await initConfig("tmp/config.json");
-logger.log("CONFIG:", config);
+// const logger = getOrCreateGlobalLogger({ debug: true, printCallerFile: true });
+// if (!("config" in globalThis)) await initConfig("tmp/config.json");
+// logger.log("CONFIG:", config);
 
-const pack = dropEmpty(<never>packTaskSchema(config.tasks["task1"]));
+// const pack = dropEmpty(<never>packTaskSchema(config.tasks["task1"]));
 
-logger.log("PACK:", pack);
+// logger.log("PACK:", pack);
 
-const ser = serializeSPACK(pack);
-logger.log("SERIALIZED:", ser);
-logger.log("SERIALIZED PASTE:", ser.toString("hex"));
-logger.log("PACK SCHEMA:", pack);
+// const ser = serializeSPACK(pack);
+// logger.log("SERIALIZED:", ser);
+// logger.log("SERIALIZED PASTE:", ser.toString("hex"));
+// logger.log("PACK SCHEMA:", pack);
 
-const deser = deserializeSPACK(ser);
-logger.log("DESERIALIZED:", deser);
+// const deser = deserializeSPACK(ser);
+// logger.log("DESERIALIZED:", deser);
 
-const unpacked = unpackTaskSchema(pack);
-logger.log("UNPACK SCHEMA:", unpacked);
-// logger.log("EXPANDED SCHEMA:", expandUnpackedTaskSchema(unpacked));
+// const unpacked = unpackTaskSchema(pack);
+// logger.log("UNPACK SCHEMA:", unpacked);
+// // logger.log("EXPANDED SCHEMA:", expandUnpackedTaskSchema(unpacked));
 
-const task: SPACKTask = <never>new _SPACKTask(unpacked);
-logger.log("SPACKTASK:", task.global_options);
+// const task: SPACKTask = <never>new _SPACKTask(unpacked);
+// logger.log("SPACKTASK:", task.global_options);
 
 
 
