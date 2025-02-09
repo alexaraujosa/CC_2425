@@ -1,46 +1,56 @@
-# Computer Communication Project
+# Computer Communications - Network Monitoring System (NMS)
 
-**Group:** idfk
-            P.S. Me Neither
+## Description
+The **Network Monitoring System (NMS)** is a project developed for the **Computer Communications** course. The system is designed to monitor network devices and links, collect metrics, and generate alerts in case of anomalies. It is implemented as a distributed application with a client-server architecture, where **NMS_Agents** collect metrics and report them to a centralized **NMS_Server**. The system uses two custom application protocols, **NetTask** (UDP-based) and **AlertFlow** (TCP-based), to ensure efficient and reliable communication. Additionally, **security measures** were implemented using the **Diffie-Hellman key exchange** to secure communication between NMS_Agents and the NMS_Server.
 
-a104257, Alex Araújo de Sá, alexaraujosa  
-a96268, Paulo Alexandre Rodrigues Ferreira, Pauloarf  
-a104271, Rafael Santos Fernandes, DarkenLM  
+### 🎯 Purpose:
+The primary objective of this project is to apply **Computer Communications** concepts, including:
+- Development of custom application protocols (NetTask and AlertFlow)
+- Use of UDP and TCP sockets for communication
+- Implementation of flow control, sequence numbers, and retransmission mechanisms over UDP
+- Distributed system design for network monitoring
+- Real-time metric collection and alert generation
+- **Secure communication** using the **Diffie-Hellman key exchange** for encryption (Not in the scope of the subject)
 
-## Setup
-To setup the environment, run the shell script present on `scripts/prepare.sh`. It should setup all needed tools to use within this project. Afterwards, run the command `pnpm install`, and the project should be fully configured.
+### 🚀 Key Features:
+- **Metric Collection**: NMS_Agents collect various network and device metrics such as CPU usage, RAM usage, interface statistics, bandwidth, latency, jitter, and packet loss.
+- **Task Management**: NMS_Server assigns tasks to NMS_Agents via a JSON configuration file, specifying which metrics to collect and how often.
+- **Real-Time Monitoring**: NMS_Agents periodically send collected metrics to the NMS_Server using the **NetTask** protocol (UDP).
+- **Alert System**: NMS_Agents notify the NMS_Server of critical changes in device or network metrics (e.g., interface failures, high CPU usage) using the **AlertFlow** protocol (TCP).
+- **Resilient Communication**: The NetTask protocol implements mechanisms like sequence numbers, acknowledgments, and retransmission to handle network failures and ensure reliable communication.
+- **Secure Communication**: **Diffie-Hellman key exchange** was implemented to establish secure communication channels between NMS_Agents and the NMS_Server, ensuring that data is encrypted and protected from eavesdropping.
+- **Data Storage**: NMS_Server stores on a database all collected metrics and alerts for later analysis.
+- **User Interface**: NMS_Server provides an interface for network managers to view metrics and alerts.
 
-## Dependencies
-To ensure the project database is set up correctly, follow these steps:
+## 📚 Learning Outcomes
+- **Custom Protocol Development**: Gained experience in designing and implementing application-layer protocols (NetTask and AlertFlow).
+- **Socket Programming**: Used UDP and TCP sockets for communication between NMS_Agents and NMS_Server.
+- **Distributed Systems**: Learned how to design and implement a distributed system for device and network monitoring.
+- **Error Handling and Resilience**: Implemented mechanisms like sequence numbers, acknowledgments, and retransmission to ensure reliable communication over UDP.
+- **Network Metrics**: Collected and analyzed various network metrics using tools like `ping`, `iperf`, and `ip` commands.
+- **JSON Parsing**: Processed JSON configuration files to assign tasks to NMS_Agents.
+- **Security Implementation**: Applied the **Diffie-Hellman key exchange** to secure communication, ensuring data confidentiality and integrity.
 
-1. **Install MongoDB Server**:  
-   Download and install MongoDB Server from [this link](https://www.mongodb.com/try/download/community) (last checked on 07/11/2024).
+## 🚧 Areas for Improvement
+- **Enhanced Error Handling**: While the system implements basic error handling (e.g., retransmission, sequence numbers), further improvements could be made to make the communication more robust. For example:
+  - Adding more sophisticated **timeout and retry mechanisms** to handle intermittent network issues.
+  - Calculate timeout values in real time by estimating RTT times.
+  - Using **checksums** or **cyclic redundancy checks (CRC)** to detect and correct errors in transmitted data.
+- **Scalability**: The system could be further optimized to handle a larger number of NMS_Agents simultaneously, possibly by introducing load balancing or distributed server architectures.
+- **Security Enhancements**: While Diffie-Hellman provides a strong foundation for secure communication, additional security measures could be added, such as:
+  - **CA's**: A certificate authority (CA) is a trusted entity that issues Secure certificates to prove authenticity.
 
-2. **Start MongoDB Server**:  
-   - **On Linux**: Run `sudo systemctl start mongod` to start the MongoDB service.
-   - **On Windows**: Refer to MongoDB's [official documentation](https://www.mongodb.com/docs/manual/tutorial/install-mongodb-on-windows/) for service setup and start instructions.
+## 👨‍💻 Contributors
+- **Alex Araújo Sá** - [Alex Sá](https://github.com/alexaraujosa)
+- **Paulo Alexandre Rodrigues Ferreira** - [Paulo Ferreira](https://github.com/pauloarf)
+- **Rafael Santos Fernandes** - [DarkenLM](https://github.com/DarkenLM)
 
-3. **Create a MongoDB Connection**:  
-   We used MongoDB Compass to manage the database. Download it [here](https://www.mongodb.com/try/download/compass) (last checked on 07/11/2024).
-
-4. **Update Connection URL in Code**:  
-   In `databaseDAO.ts`, change the `MONGO_URL` variable to reflect your connection string if needed.
-
-5. **Database Creation**:  
-   After configuration, a database called `CCDatabase` will be created automatically when the project connects for the first time.
-
-> _Note:_ Setting up MongoDB in the CORE environment was challenging and remains partially unresolved.
->
-> _TL;DR:_ we'fucked.
-
-## Documentation
-This project automatically generates the API documentation for both the Server and Agent solutions by running the command `pnpm run docs` (note that `pnpm docs` would not work in this case, as it is a primitive command for pnpm), nd can be found on `docs/api`.  
-The documentation generation is powered by [Typedoc](https://typedoc.org).
-
-## VSCode Debugging
-There are four debugger configurations included: `Debug Current File (TSX)`, `Debug Agent Solution (TSX)`, `Debug Server Solution (TSX)` and `Debug Server + Agent`. Their name describes their targets, and `(TSX)` indicates that [TSX](https://tsx.is) is used as the runtime.
-
-## Recommended Extensions
-This project contains a set of extensions that are required for the development workflow to work. VSCode marks them as "recommended", but they are absolutely mandatory.
-
-<img src="./docs/repo/gun.png" alt="I'm gonna sue you out of existence." width="400"/>
+## 🛠️ Technologies Used
+- **Programming Language**: javascript
+- **Network Emulator**: CORE 7.5
+- **Communication Protocols**: UDP (NetTask), TCP (AlertFlow)
+- **Security Protocol**: **Diffie-Hellman key exchange** for secure communication
+- **Network Tools**: `ping`, `iperf`, `ip` commands
+- **Data Handling**: JSON for task configuration, file-based storage for metrics and alerts
+- **Development Tools**: Wireshark (for network analysis)
+- **Data Persistance**: mongoDB
